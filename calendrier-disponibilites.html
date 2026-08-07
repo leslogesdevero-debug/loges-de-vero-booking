@@ -3,318 +3,312 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Disponibilités — Les Loges de Véro</title>
+<title>Réserver — Les Loges de Véro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --limestone:#F6F3EC;
-    --card:#FFFFFF;
-    --ink:#2A2926;
-    --ink-soft:#6b6558;
-    --river:#3E5C6E;
-    --river-soft:#EAF0F2;
-    --forest:#55704B;
-    --forest-soft:#EBF0E7;
-    --brick:#A15A3E;
-    --brick-soft:#F5E7E0;
-    --dragee:#E7C9CE;
-    --line:#DED7C6;
+    --limestone:#F6F3EC; --card:#FFFFFF; --ink:#2A2926; --ink-soft:#6b6558;
+    --river:#3E5C6E; --river-soft:#EAF0F2; --forest:#55704B; --forest-soft:#EBF0E7;
+    --brick:#A15A3E; --brick-soft:#F5E7E0; --dragee:#E7C9CE; --line:#DED7C6;
   }
   *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--limestone);
-    color:var(--ink);
-    font-family:'Work Sans', sans-serif;
-    padding:32px 16px 56px;
-  }
-  .cal-app{
-    max-width:920px;
-    margin:0 auto;
-  }
-  .app-header{
-    text-align:center;
-    margin-bottom:28px;
-    padding-bottom:20px;
-    border-bottom:3px double var(--line);
-  }
-  .app-header .eyebrow{
-    font-size:12px;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-    color:var(--river);
-    font-weight:600;
-  }
-  .app-header h1{
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    font-size:clamp(24px,4vw,32px);
-    margin:6px 0 4px;
-  }
-  .app-header p{
-    margin:0;
-    color:var(--ink-soft);
-    font-size:14px;
-  }
-  .properties-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-  }
-  @media (max-width:720px){
-    .properties-grid{grid-template-columns:1fr;}
-  }
-  .property-card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:6px;
-    padding:20px;
-  }
-  .property-header{
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    margin-bottom:14px;
-  }
-  .property-header h2{
-    font-family:'Fraunces', serif;
-    font-size:19px;
-    font-weight:600;
-    margin:0;
-  }
-  .property-header .capacity{
-    font-size:12px;
-    color:var(--ink-soft);
-  }
-  .calendar-nav{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:10px;
-  }
-  .nav-btn{
-    background:none;
-    border:1px solid var(--line);
-    border-radius:4px;
-    width:28px;
-    height:28px;
-    font-size:15px;
-    color:var(--river);
-    cursor:pointer;
-    line-height:1;
-  }
+  body{margin:0; background:var(--limestone); color:var(--ink); font-family:'Work Sans',sans-serif; padding:32px 16px 56px;}
+  .app{max-width:620px; margin:0 auto;}
+  .app-header{text-align:center; margin-bottom:22px; padding-bottom:18px; border-bottom:3px double var(--line);}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--river); font-weight:600;}
+  .app-header h1{font-family:'Fraunces',serif; font-weight:600; font-size:clamp(22px,4vw,28px); margin:6px 0 4px;}
+  .app-header p{margin:0; color:var(--ink-soft); font-size:13px;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .tab{flex:1; padding:10px; text-align:center; border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; font-size:14px; color:var(--ink-soft);}
+  .tab.active{background:var(--river); color:#fff; border-color:var(--river);}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px;}
+  .calendar-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .nav-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; font-size:15px; color:var(--river); cursor:pointer;}
   .nav-btn:hover{background:var(--river-soft);}
-  .month-label{
-    font-weight:600;
-    font-size:14px;
-    text-transform:capitalize;
-  }
-  .weekday-row{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    margin-bottom:4px;
-  }
-  .weekday-row span{
-    text-align:center;
-    font-size:11px;
-    color:var(--ink-soft);
-    font-weight:600;
-  }
-  .day-grid{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    gap:3px;
-  }
-  .day-cell{
-    aspect-ratio:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:12px;
-    border-radius:4px;
-    position:relative;
-  }
-  .day-cell.empty{visibility:hidden;}
+  .month-label{font-weight:600; font-size:14px; text-transform:capitalize;}
+  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px;}
+  .weekday-row span{text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;}
+  .day-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
+  .day-cell{aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:13px; border-radius:4px; position:relative; cursor:pointer; user-select:none;}
+  .day-cell.empty{visibility:hidden; cursor:default;}
+  .day-cell.past{color:#c9c3b4; cursor:default;}
   .day-cell.available{background:var(--forest-soft); color:var(--forest);}
-  .day-cell.booked{
-    background:repeating-linear-gradient(135deg, var(--brick-soft), var(--brick-soft) 4px, #eeded6 4px, #eeded6 8px);
-    color:var(--brick);
-    text-decoration:line-through;
-    text-decoration-thickness:1px;
-    opacity:.85;
-  }
-  .day-cell.today{
-    box-shadow:0 0 0 2px var(--dragee);
-    font-weight:700;
-  }
-  .status-line{
-    margin-top:10px;
-    font-size:12px;
-    color:var(--ink-soft);
-    min-height:16px;
-  }
+  .day-cell.available:hover{outline:1px solid var(--forest);}
+  .day-cell.booked{background:repeating-linear-gradient(135deg,var(--brick-soft),var(--brick-soft) 4px,#eeded6 4px,#eeded6 8px); color:var(--brick); text-decoration:line-through; cursor:not-allowed;}
+  .day-cell.today{box-shadow:0 0 0 2px var(--dragee);}
+  .day-cell.selected-edge{background:var(--river); color:#fff; font-weight:700;}
+  .day-cell.selected-range{background:var(--river-soft); color:var(--river);}
+
+  .status-line{margin-top:10px; font-size:12px; color:var(--ink-soft); min-height:16px;}
   .status-line.error{color:var(--brick);}
-  .legend{
-    display:flex;
-    justify-content:center;
-    gap:22px;
-    margin-top:26px;
-    flex-wrap:wrap;
-  }
-  .legend-item{
-    display:flex;
-    align-items:center;
-    gap:7px;
-    font-size:12px;
-    color:var(--ink-soft);
-  }
-  .dot{
-    width:14px;
-    height:10px;
-    border-radius:50%/60%;
-    display:inline-block;
-  }
-  .dot.available{background:var(--forest);}
-  .dot.booked{background:var(--brick);}
-  .dot.today{background:var(--dragee); box-shadow:0 0 0 2px var(--dragee);}
-  .app-footer{
-    text-align:center;
-    margin-top:24px;
-    font-size:11px;
-    color:var(--ink-soft);
-  }
+
+  .summary{margin-top:18px; border-top:1px dashed var(--line); padding-top:16px;}
+  .summary-row{display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px; color:var(--ink-soft);}
+  .summary-row.total{font-weight:700; color:var(--ink); font-size:17px; border-top:1px solid var(--line); padding-top:10px; margin-top:8px;}
+  .summary-dates{font-family:'Fraunces',serif; font-size:16px; margin-bottom:10px;}
+  .summary-placeholder{color:var(--ink-soft); font-size:13px; text-align:center; padding:6px 0;}
+
+  .book-btn{width:100%; margin-top:16px; padding:13px; border:none; border-radius:6px; background:var(--forest); color:#fff; font-weight:700; font-size:15px; cursor:pointer; font-family:'Work Sans',sans-serif;}
+  .book-btn:disabled{background:#c9c3b4; cursor:not-allowed;}
+  .book-btn:not(:disabled):hover{background:#476140;}
+
+  .legend{display:flex; justify-content:center; gap:20px; margin-top:22px; flex-wrap:wrap;}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft);}
+  .dot{width:14px; height:10px; border-radius:50%/60%; display:inline-block;}
+  .dot.available{background:var(--forest);} .dot.booked{background:var(--brick);} .dot.selected{background:var(--river);}
+
+  .app-footer{text-align:center; margin-top:20px; font-size:11px; color:var(--ink-soft);}
 </style>
 </head>
 <body>
-<div class="cal-app">
+<div class="app">
   <div class="app-header">
     <div class="eyebrow">Les Loges de Véro</div>
-    <h1>Disponibilités</h1>
-    <p>Calendrier mis à jour automatiquement depuis nos réservations</p>
+    <h1>Réserver votre séjour</h1>
+    <p>Choisissez vos dates, le tarif s'affiche automatiquement</p>
   </div>
 
-  <div class="properties-grid">
-    <section class="property-card" id="card-duplex">
-      <div class="property-header">
-        <h2>Le Duplex</h2>
-        <span class="capacity">1 à 4 pers.</span>
-      </div>
-      <div class="calendar-nav">
-        <button class="nav-btn" data-dir="-1" data-prop="duplex">‹</button>
-        <span class="month-label" id="label-duplex"></span>
-        <button class="nav-btn" data-dir="1" data-prop="duplex">›</button>
-      </div>
-      <div class="weekday-row">
-        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
-      </div>
-      <div class="day-grid" id="grid-duplex"></div>
-      <div class="status-line" id="status-duplex">Chargement…</div>
-    </section>
+  <div class="tabs">
+    <div class="tab active" data-prop="duplex">Le Duplex</div>
+    <div class="tab" data-prop="rdc">Le Rez-de-chaussée</div>
+  </div>
 
-    <section class="property-card" id="card-rdc">
-      <div class="property-header">
-        <h2>Le Rez-de-chaussée</h2>
-        <span class="capacity">1 à 6 pers.</span>
+  <div class="card">
+    <div class="calendar-nav">
+      <button class="nav-btn" id="prev-btn">‹</button>
+      <span class="month-label" id="month-label"></span>
+      <button class="nav-btn" id="next-btn">›</button>
+    </div>
+    <div class="weekday-row"><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div>
+    <div class="day-grid" id="day-grid"></div>
+    <div class="status-line" id="status-line">Chargement des disponibilités…</div>
+
+    <div class="summary" id="summary">
+      <div class="summary-placeholder" id="summary-placeholder">Sélectionnez une date d'arrivée, puis une date de départ.</div>
+      <div id="summary-details" style="display:none;">
+        <div class="summary-dates" id="summary-dates"></div>
+        <div class="summary-row" id="row-nightly"></div>
+        <div class="summary-row" id="row-cleaning"></div>
+        <div class="summary-row total" id="row-total"></div>
       </div>
-      <div class="calendar-nav">
-        <button class="nav-btn" data-dir="-1" data-prop="rdc">‹</button>
-        <span class="month-label" id="label-rdc"></span>
-        <button class="nav-btn" data-dir="1" data-prop="rdc">›</button>
-      </div>
-      <div class="weekday-row">
-        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
-      </div>
-      <div class="day-grid" id="grid-rdc"></div>
-      <div class="status-line" id="status-rdc">Chargement…</div>
-    </section>
+    </div>
+
+    <button class="book-btn" id="book-btn" disabled>Sélectionnez vos dates</button>
   </div>
 
   <div class="legend">
     <span class="legend-item"><i class="dot available"></i>Disponible</span>
     <span class="legend-item"><i class="dot booked"></i>Réservé</span>
-    <span class="legend-item"><i class="dot today"></i>Aujourd'hui</span>
+    <span class="legend-item"><i class="dot selected"></i>Sélection</span>
   </div>
 
-  <div class="app-footer">Les dates affichées sont indicatives — toute demande de réservation est confirmée par nos soins.</div>
+  <div class="app-footer">Paiement sécurisé par carte bancaire via Stripe. Vous êtes redirigé(e) vers une page de paiement sécurisée.</div>
 </div>
 
 <script>
-// Adresse de votre fonction Netlify (voir README.md du dossier reservation-stripe)
-const AVAILABILITY_ENDPOINT = 'https://VOTRE-SITE.netlify.app/.netlify/functions/get-availability';
+// ====================== CONFIGURATION À COMPLÉTER ======================
+// URL de la fonction serveur une fois déployée sur Netlify (voir README.md)
+const FUNCTION_ENDPOINT = 'https://extraordinary-cuchufli-7c8423.netlify.app/.netlify/functions/create-checkout';
+// Fichier de tarifs hébergé sur votre propre site, modifiable à tout moment
+const TARIFS_URL = 'https://extraordinary-cuchufli-7c8423.netlify.app/tarifs.json';
+// =========================================================================
 
+// Adresse de votre fonction Netlify (la même base que FUNCTION_ENDPOINT ci-dessus)
+const AVAILABILITY_ENDPOINT = 'https://extraordinary-cuchufli-7c8423.netlify.app/.netlify/functions/get-availability';
+const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 const FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-const today = new Date();
+const today = new Date(); today.setHours(0,0,0,0);
 const todayStr = fmt(today);
 
-const state = {
-  duplex: { view: new Date(today.getFullYear(), today.getMonth(), 1), booked: new Set() },
-  rdc:    { view: new Date(today.getFullYear(), today.getMonth(), 1), booked: new Set() }
-};
+let currentProp = 'duplex';
+let view = new Date(today.getFullYear(), today.getMonth(), 1);
+let booked = {}; // { duplex: Set, rdc: Set }
+let tarifs = null;
+let selection = { checkin: null, checkout: null };
 
-function fmt(d){
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
+function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
-async function loadProperty(key){
-  const statusEl = document.getElementById('status-' + key);
+async function loadAvailability(prop){
   try{
-    const res = await fetch(AVAILABILITY_ENDPOINT + '?property=' + key, { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const res = await fetch(AVAILABILITY_ENDPOINT + '?property=' + prop, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-    state[key].booked = new Set(data[key] || []);
-    statusEl.textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-    statusEl.classList.remove('error');
-  }catch(err){
-    statusEl.textContent = 'Disponibilités indisponibles pour le moment — merci de nous contacter directement.';
-    statusEl.classList.add('error');
+    booked[prop] = new Set(data[prop] || []);
+  }catch(e){
+    booked[prop] = booked[prop] || new Set();
+    setStatus('Disponibilités indisponibles pour le moment, réessayez plus tard.', true);
   }
-  renderCalendar(key);
 }
 
-function renderCalendar(key){
-  const view = state[key].view;
-  const year = view.getFullYear(), month = view.getMonth();
-  document.getElementById('label-' + key).textContent = FR_MONTHS[month] + ' ' + year;
+async function loadTarifs(){
+  try{
+    const res = await fetch(TARIFS_URL, { cache:'no-store' });
+    tarifs = await res.json();
+  }catch(e){
+    setStatus('Tarifs indisponibles pour le moment.', true);
+  }
+}
 
-  const grid = document.getElementById('grid-' + key);
+function setStatus(msg, isError){
+  const el = document.getElementById('status-line');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+}
+
+function hasBookedBetween(a,b){ // strictement entre a (inclus) et b (exclu)
+  const d = new Date(a);
+  while(d < b){ if(booked[currentProp].has(fmt(d))) return true; d.setDate(d.getDate()+1); }
+  return false;
+}
+
+function renderCalendar(){
+  document.getElementById('month-label').textContent = FR_MONTHS[view.getMonth()] + ' ' + view.getFullYear();
+  const grid = document.getElementById('day-grid');
   grid.innerHTML = '';
-
+  const year = view.getFullYear(), month = view.getMonth();
   const firstDay = new Date(year, month, 1);
-  const startOffset = (firstDay.getDay() + 6) % 7; // lundi = 0
+  const offset = (firstDay.getDay()+6)%7;
   const daysInMonth = new Date(year, month+1, 0).getDate();
 
-  for(let i=0; i<startOffset; i++){
-    const cell = document.createElement('div');
-    cell.className = 'day-cell empty';
-    grid.appendChild(cell);
-  }
+  for(let i=0;i<offset;i++){ const c=document.createElement('div'); c.className='day-cell empty'; grid.appendChild(c); }
 
   for(let day=1; day<=daysInMonth; day++){
     const d = new Date(year, month, day);
     const dStr = fmt(d);
     const cell = document.createElement('div');
-    const isBooked = state[key].booked.has(dStr);
-    cell.className = 'day-cell ' + (isBooked ? 'booked' : 'available') + (dStr === todayStr ? ' today' : '');
     cell.textContent = day;
+    const isPast = d < today;
+    const isBooked = booked[currentProp] && booked[currentProp].has(dStr);
+    let cls = 'day-cell';
+    if(isPast) cls += ' past';
+    else if(isBooked) cls += ' booked';
+    else cls += ' available';
+    if(dStr === todayStr) cls += ' today';
+
+    if(!isPast && !isBooked){
+      if(selection.checkin === dStr || selection.checkout === dStr) cls += ' selected-edge';
+      else if(selection.checkin && selection.checkout && dStr > selection.checkin && dStr < selection.checkout) cls += ' selected-range';
+      cell.addEventListener('click', () => onDayClick(d, dStr));
+    }
+    cell.className = cls;
     grid.appendChild(cell);
   }
 }
 
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const prop = btn.dataset.prop;
-    const dir = parseInt(btn.dataset.dir, 10);
-    const v = state[prop].view;
-    state[prop].view = new Date(v.getFullYear(), v.getMonth() + dir, 1);
-    renderCalendar(prop);
+function onDayClick(d, dStr){
+  if(!selection.checkin || (selection.checkin && selection.checkout)){
+    selection = { checkin: dStr, checkout: null };
+  } else {
+    if(dStr <= selection.checkin){
+      selection = { checkin: dStr, checkout: null };
+    } else if(hasBookedBetween(new Date(selection.checkin), d)){
+      setStatus('Une date réservée se trouve dans cette période — choisissez un autre départ.', true);
+      selection = { checkin: dStr, checkout: null };
+    } else {
+      selection.checkout = dStr;
+      setStatus('');
+    }
+  }
+  renderCalendar();
+  updateSummary();
+}
+
+function updateSummary(){
+  const placeholder = document.getElementById('summary-placeholder');
+  const details = document.getElementById('summary-details');
+  const btn = document.getElementById('book-btn');
+
+  if(!selection.checkin || !selection.checkout || !tarifs){
+    placeholder.style.display = 'block';
+    details.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Sélectionnez vos dates';
+    return;
+  }
+
+  const t = tarifs[currentProp];
+  const nights = Math.round((new Date(selection.checkout) - new Date(selection.checkin)) / 86400000);
+
+  if(t && nights < (t.minNights || 1)){
+    placeholder.style.display = 'block';
+    placeholder.textContent = `Séjour minimum de ${t.minNights} nuits pour ce logement.`;
+    details.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Séjour trop court';
+    return;
+  }
+
+  placeholder.style.display = 'none';
+  details.style.display = 'block';
+
+  const nightly = t ? t.nightly : 0;
+  const cleaning = t ? (t.cleaningFee || 0) : 0;
+  const total = nightly * nights + cleaning;
+
+  document.getElementById('summary-dates').textContent =
+    `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''}`;
+  document.getElementById('row-nightly').innerHTML = `<span>${nightly} € × ${nights} nuit${nights>1?'s':''}</span><span>${nightly*nights} €</span>`;
+  document.getElementById('row-cleaning').innerHTML = cleaning
+    ? `<span>Frais de ménage</span><span>${cleaning} €</span>` : '';
+  document.getElementById('row-total').innerHTML = `<span>Total</span><span>${total} €</span>`;
+
+  btn.disabled = false;
+  btn.textContent = `Réserver et payer ${total} €`;
+}
+
+function formatFR(dStr){
+  const [y,m,d] = dStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+document.getElementById('book-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('book-btn');
+  btn.disabled = true;
+  btn.textContent = 'Redirection vers le paiement…';
+  try{
+    const res = await fetch(FUNCTION_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
+    window.location.href = data.url;
+  }catch(e){
+    setStatus(e.message, true);
+    btn.disabled = false;
+    updateSummary();
+  }
+});
+
+document.getElementById('prev-btn').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth()-1, 1); renderCalendar(); });
+document.getElementById('next-btn').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth()+1, 1); renderCalendar(); });
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', async () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentProp = tab.dataset.prop;
+    selection = { checkin: null, checkout: null };
+    setStatus('Chargement des disponibilités…');
+    if(!booked[currentProp]) await loadAvailability(currentProp);
+    setStatus('');
+    renderCalendar();
+    updateSummary();
   });
 });
 
-loadProperty('duplex');
-loadProperty('rdc');
+(async function init(){
+  await Promise.all([loadAvailability('duplex'), loadTarifs()]);
+  setStatus('');
+  renderCalendar();
+  updateSummary();
+})();
 </script>
 </body>
 </html>
