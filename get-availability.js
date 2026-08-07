@@ -9,7 +9,7 @@ const ICS_URLS = {
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 
-const SITE_URL = 'https://leslogesdevero.fr';
+const SITE_URL = 'https://extraordinary-cuchufli-7c8423.netlify.app';
 
 function unfoldICS(text) {
   return text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
