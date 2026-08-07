@@ -8,8 +8,9 @@ const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // -------- À adapter à votre configuration --------
-const SITE_URL = 'https://leslogesdevero.fr';
-const TARIFS_URL = 'https://leslogesdevero.fr/tarifs.json';
+const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
+const ALLOWED_ORIGIN = 'https://extraordinary-cuchufli-7c8423.netlify.app'; // où le widget est intégré (iframe)
+const TARIFS_URL = 'https://extraordinary-cuchufli-7c8423.netlify.app/tarifs.json';
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
@@ -65,7 +66,7 @@ async function getBookedSet(property) {
 
 exports.handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': SITE_URL,
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
