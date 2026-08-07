@@ -1,0 +1,9 @@
+{
+  "name": "loges-de-vero-booking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fonction serveur pour la réservation directe avec paiement Stripe — Les Loges de Véro",
+  "dependencies": {
+    "stripe": "^16.0.0"
+  }
+}

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disponibilités — Les Loges de Véro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --limestone:#F6F3EC;
+    --card:#FFFFFF;
+    --ink:#2A2926;
+    --ink-soft:#6b6558;
+    --river:#3E5C6E;
+    --river-soft:#EAF0F2;
+    --forest:#55704B;
+    --forest-soft:#EBF0E7;
+    --brick:#A15A3E;
+    --brick-soft:#F5E7E0;
+    --dragee:#E7C9CE;
+    --line:#DED7C6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--limestone);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    padding:32px 16px 56px;
+  }
+  .cal-app{
+    max-width:920px;
+    margin:0 auto;
+  }
+  .app-header{
+    text-align:center;
+    margin-bottom:28px;
+    padding-bottom:20px;
+    border-bottom:3px double var(--line);
+  }
+  .app-header .eyebrow{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--river);
+    font-weight:600;
+  }
+  .app-header h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(24px,4vw,32px);
+    margin:6px 0 4px;
+  }
+  .app-header p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:14px;
+  }
+  .properties-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+  @media (max-width:720px){
+    .properties-grid{grid-template-columns:1fr;}
+  }
+  .property-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px;
+  }
+  .property-header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .property-header h2{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    font-weight:600;
+    margin:0;
+  }
+  .property-header .capacity{
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .calendar-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .nav-btn{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:4px;
+    width:28px;
+    height:28px;
+    font-size:15px;
+    color:var(--river);
+    cursor:pointer;
+    line-height:1;
+  }
+  .nav-btn:hover{background:var(--river-soft);}
+  .month-label{
+    font-weight:600;
+    font-size:14px;
+    text-transform:capitalize;
+  }
+  .weekday-row{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    margin-bottom:4px;
+  }
+  .weekday-row span{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+  .day-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:3px;
+  }
+  .day-cell{
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    border-radius:4px;
+    position:relative;
+  }
+  .day-cell.empty{visibility:hidden;}
+  .day-cell.available{background:var(--forest-soft); color:var(--forest);}
+  .day-cell.booked{
+    background:repeating-linear-gradient(135deg, var(--brick-soft), var(--brick-soft) 4px, #eeded6 4px, #eeded6 8px);
+    color:var(--brick);
+    text-decoration:line-through;
+    text-decoration-thickness:1px;
+    opacity:.85;
+  }
+  .day-cell.today{
+    box-shadow:0 0 0 2px var(--dragee);
+    font-weight:700;
+  }
+  .status-line{
+    margin-top:10px;
+    font-size:12px;
+    color:var(--ink-soft);
+    min-height:16px;
+  }
+  .status-line.error{color:var(--brick);}
+  .legend{
+    display:flex;
+    justify-content:center;
+    gap:22px;
+    margin-top:26px;
+    flex-wrap:wrap;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .dot{
+    width:14px;
+    height:10px;
+    border-radius:50%/60%;
+    display:inline-block;
+  }
+  .dot.available{background:var(--forest);}
+  .dot.booked{background:var(--brick);}
+  .dot.today{background:var(--dragee); box-shadow:0 0 0 2px var(--dragee);}
+  .app-footer{
+    text-align:center;
+    margin-top:24px;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="cal-app">
+  <div class="app-header">
+    <div class="eyebrow">Les Loges de Véro</div>
+    <h1>Disponibilités</h1>
+    <p>Calendrier mis à jour automatiquement depuis nos réservations</p>
+  </div>
+
+  <div class="properties-grid">
+    <section class="property-card" id="card-duplex">
+      <div class="property-header">
+        <h2>Le Duplex</h2>
+        <span class="capacity">1 à 4 pers.</span>
+      </div>
+      <div class="calendar-nav">
+        <button class="nav-btn" data-dir="-1" data-prop="duplex">‹</button>
+        <span class="month-label" id="label-duplex"></span>
+        <button class="nav-btn" data-dir="1" data-prop="duplex">›</button>
+      </div>
+      <div class="weekday-row">
+        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+      </div>
+      <div class="day-grid" id="grid-duplex"></div>
+      <div class="status-line" id="status-duplex">Chargement…</div>
+    </section>
+
+    <section class="property-card" id="card-rdc">
+      <div class="property-header">
+        <h2>Le Rez-de-chaussée</h2>
+        <span class="capacity">1 à 6 pers.</span>
+      </div>
+      <div class="calendar-nav">
+        <button class="nav-btn" data-dir="-1" data-prop="rdc">‹</button>
+        <span class="month-label" id="label-rdc"></span>
+        <button class="nav-btn" data-dir="1" data-prop="rdc">›</button>
+      </div>
+      <div class="weekday-row">
+        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+      </div>
+      <div class="day-grid" id="grid-rdc"></div>
+      <div class="status-line" id="status-rdc">Chargement…</div>
+    </section>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><i class="dot available"></i>Disponible</span>
+    <span class="legend-item"><i class="dot booked"></i>Réservé</span>
+    <span class="legend-item"><i class="dot today"></i>Aujourd'hui</span>
+  </div>
+
+  <div class="app-footer">Les dates affichées sont indicatives — toute demande de réservation est confirmée par nos soins.</div>
+</div>
+
+<script>
+// Adresse de votre fonction Netlify (voir README.md du dossier reservation-stripe)
+const AVAILABILITY_ENDPOINT = 'https://VOTRE-SITE.netlify.app/.netlify/functions/get-availability';
+
+const FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+const today = new Date();
+const todayStr = fmt(today);
+
+const state = {
+  duplex: { view: new Date(today.getFullYear(), today.getMonth(), 1), booked: new Set() },
+  rdc:    { view: new Date(today.getFullYear(), today.getMonth(), 1), booked: new Set() }
+};
+
+function fmt(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function loadProperty(key){
+  const statusEl = document.getElementById('status-' + key);
+  try{
+    const res = await fetch(AVAILABILITY_ENDPOINT + '?property=' + key, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    state[key].booked = new Set(data[key] || []);
+    statusEl.textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    statusEl.classList.remove('error');
+  }catch(err){
+    statusEl.textContent = 'Disponibilités indisponibles pour le moment — merci de nous contacter directement.';
+    statusEl.classList.add('error');
+  }
+  renderCalendar(key);
+}
+
+function renderCalendar(key){
+  const view = state[key].view;
+  const year = view.getFullYear(), month = view.getMonth();
+  document.getElementById('label-' + key).textContent = FR_MONTHS[month] + ' ' + year;
+
+  const grid = document.getElementById('grid-' + key);
+  grid.innerHTML = '';
+
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // lundi = 0
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  for(let i=0; i<startOffset; i++){
+    const cell = document.createElement('div');
+    cell.className = 'day-cell empty';
+    grid.appendChild(cell);
+  }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const dStr = fmt(d);
+    const cell = document.createElement('div');
+    const isBooked = state[key].booked.has(dStr);
+    cell.className = 'day-cell ' + (isBooked ? 'booked' : 'available') + (dStr === todayStr ? ' today' : '');
+    cell.textContent = day;
+    grid.appendChild(cell);
+  }
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const prop = btn.dataset.prop;
+    const dir = parseInt(btn.dataset.dir, 10);
+    const v = state[prop].view;
+    state[prop].view = new Date(v.getFullYear(), v.getMonth() + dir, 1);
+    renderCalendar(prop);
+  });
+});
+
+loadProperty('duplex');
+loadProperty('rdc');
+</script>
+</body>
+</html>

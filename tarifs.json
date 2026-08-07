@@ -1,0 +1,12 @@
+{
+  "duplex": {
+    "nightly": 95,
+    "cleaningFee": 30,
+    "minNights": 2
+  },
+  "rdc": {
+    "nightly": 120,
+    "cleaningFee": 30,
+    "minNights": 2
+  }
+}
