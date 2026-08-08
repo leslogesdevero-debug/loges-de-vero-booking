@@ -68,6 +68,20 @@
   .dot.available{background:var(--forest);} .dot.booked{background:var(--brick);} .dot.selected{background:var(--river);}
 
   .app-footer{text-align:center; margin-top:20px; font-size:11px; color:var(--ink-soft);}
+
+  .guest-form{margin-top:18px; border-top:1px dashed var(--line); padding-top:16px; display:none;}
+  .guest-form.visible{display:block;}
+  .guest-form h3{font-family:'Fraunces',serif; font-size:15px; margin:0 0 12px;}
+  .form-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;}
+  .form-field{display:flex; flex-direction:column; gap:4px;}
+  .form-field.full{grid-column:1 / -1;}
+  .form-field label{font-size:11px; font-weight:600; color:var(--ink-soft);}
+  .form-field input, .form-field textarea{
+    border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-family:'Work Sans',sans-serif; font-size:13px; color:var(--ink); background:#fff;
+  }
+  .form-field textarea{resize:vertical; min-height:44px;}
+  .form-field input:invalid:not(:placeholder-shown){border-color:var(--brick);}
+  .form-note{font-size:11px; color:var(--ink-soft); margin-top:2px;}
 </style>
 </head>
 <body>
@@ -111,6 +125,37 @@
         <div class="summary-row" id="row-taxe"></div>
         <div class="summary-row total" id="row-total"></div>
       </div>
+    </div>
+
+    <div class="guest-form" id="guest-form">
+      <h3>Vos coordonnées</h3>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="f-prenom">Prénom *</label>
+          <input type="text" id="f-prenom" required>
+        </div>
+        <div class="form-field">
+          <label for="f-nom">Nom *</label>
+          <input type="text" id="f-nom" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label for="f-adresse">Adresse complète *</label>
+          <textarea id="f-adresse" required placeholder="N°, rue, code postal, ville, pays"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="f-telephone">Téléphone portable *</label>
+          <input type="tel" id="f-telephone" required placeholder="06 12 34 56 78">
+        </div>
+        <div class="form-field">
+          <label for="f-email">Email *</label>
+          <input type="email" id="f-email" required placeholder="vous@exemple.fr">
+        </div>
+      </div>
+      <div class="form-note">Ces informations servent uniquement à votre séjour (accueil, contact sur place) et à l'obligation légale de déclaration des meublés de tourisme. Vous recevrez un email de confirmation de votre pré-réservation.</div>
     </div>
 
     <button class="book-btn" id="book-btn" disabled>Sélectionnez vos dates</button>
@@ -235,6 +280,29 @@ function onDayClick(d, dStr){
   updateSummary();
 }
 
+function isGuestFormValid(){
+  const prenom = document.getElementById('f-prenom').value.trim();
+  const nom = document.getElementById('f-nom').value.trim();
+  const adresse = document.getElementById('f-adresse').value.trim();
+  const telephone = document.getElementById('f-telephone').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const telOk = telephone.replace(/[^0-9+]/g,'').length >= 8;
+  return prenom && nom && adresse && telOk && emailOk;
+}
+
+function getGuestInfo(){
+  return {
+    prenom: document.getElementById('f-prenom').value.trim(),
+    nom: document.getElementById('f-nom').value.trim(),
+    adresse: document.getElementById('f-adresse').value.trim(),
+    telephone: document.getElementById('f-telephone').value.trim(),
+    email: document.getElementById('f-email').value.trim()
+  };
+}
+
+document.getElementById('guest-form').addEventListener('input', updateSummary);
+
 function updateSummary(){
   const placeholder = document.getElementById('summary-placeholder');
   const details = document.getElementById('summary-details');
@@ -243,6 +311,7 @@ function updateSummary(){
   if(!selection.checkin || !selection.checkout || !tarifs){
     placeholder.style.display = 'block';
     details.style.display = 'none';
+    document.getElementById('guest-form').classList.remove('visible');
     btn.disabled = true;
     btn.textContent = 'Sélectionnez vos dates';
     return;
@@ -255,6 +324,7 @@ function updateSummary(){
     placeholder.style.display = 'block';
     placeholder.textContent = `Séjour minimum de ${t.minNights} nuits pour ce logement.`;
     details.style.display = 'none';
+    document.getElementById('guest-form').classList.remove('visible');
     btn.disabled = true;
     btn.textContent = 'Séjour trop court';
     return;
@@ -262,6 +332,7 @@ function updateSummary(){
 
   placeholder.style.display = 'none';
   details.style.display = 'block';
+  document.getElementById('guest-form').classList.add('visible');
 
   const nightly = t ? t.nightly : 0;
   const cleaning = t ? (t.cleaningFee || 0) : 0;
@@ -278,8 +349,8 @@ function updateSummary(){
     ? `<span>Taxe de séjour (${adults} adulte${adults>1?'s':''} × ${nights} nuit${nights>1?'s':''})</span><span>${taxeSejour.toFixed(2)} €</span>` : '';
   document.getElementById('row-total').innerHTML = `<span>Total</span><span>${total.toFixed(2)} €</span>`;
 
-  btn.disabled = false;
-  btn.textContent = `Réserver et payer ${total.toFixed(2)} €`;
+  btn.disabled = !isGuestFormValid();
+  btn.textContent = isGuestFormValid() ? `Réserver et payer ${total.toFixed(2)} €` : 'Complétez vos coordonnées';
 }
 
 function formatFR(dStr){
@@ -303,7 +374,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     const res = await fetch(FUNCTION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults })
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, guest: getGuestInfo() })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
