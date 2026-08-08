@@ -8,3 +8,8 @@
   for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "https://leslogesdevero.fr"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Content-Type = "text/html; charset=utf-8"
