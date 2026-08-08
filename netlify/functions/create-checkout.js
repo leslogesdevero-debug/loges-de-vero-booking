@@ -16,7 +16,25 @@ const ICS_URLS = {
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+// Adresse d'expédition : utilisez onboarding@resend.dev tant que votre domaine
+// n'est pas vérifié sur Resend, puis remplacez par une adresse @leslogesdevero.fr
+const FROM_EMAIL = 'Les Loges de Véro <onboarding@resend.dev>';
+// Adresse à laquelle vous recevez une notification de chaque pré-réservation
+const OWNER_EMAIL = 'contact@leslogesdevero.fr';
 // --------------------------------------------------
+
+async function sendEmail(to, subject, html){
+  if(!RESEND_API_KEY) return; // envoi désactivé si la clé n'est pas configurée
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html })
+  });
+}
 
 function unfoldICS(text) {
   return text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
@@ -76,7 +94,14 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée.' }) };
 
   try {
-    const { property, checkin, checkout, adults } = JSON.parse(event.body || '{}');
+    const { property, checkin, checkout, adults, guest } = JSON.parse(event.body || '{}');
+
+    const g = guest || {};
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email || '');
+    const telOk = (g.telephone || '').replace(/[^0-9+]/g, '').length >= 8;
+    if (!g.prenom || !g.nom || !g.adresse || !telOk || !emailOk) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Merci de renseigner des coordonnées complètes et valides.' }) };
+    }
 
     if (!PROPERTY_NAMES[property]) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Logement inconnu.' }) };
@@ -116,3 +141,90 @@ exports.handler = async (event) => {
     while (d < end) {
       if (booked.has(fmt(d))) {
         return { statusCode: 409, headers, body: JSON.stringify({ error: 'Ces dates viennent d\'être réservées par quelqu\'un d\'autre. Merci de choisir une autre période.' }) };
+      }
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+
+    // 3. Calcul du montant (logement + taxe de séjour, calculée séparément)
+    const cleaningFee = tarif.cleaningFee || 0;
+    const accommodationCents = Math.round((tarif.nightly * nights + cleaningFee) * 100);
+    const taxeParUnite = tarif.taxeSejourParAdulteParNuit || 0;
+    const taxeUnitCents = Math.round(taxeParUnite * 100);
+    const taxeQuantity = adultsCount * nights;
+
+    const lineItems = [{
+      price_data: {
+        currency: 'eur',
+        unit_amount: accommodationCents,
+        product_data: {
+          name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`
+        }
+      },
+      quantity: 1
+    }];
+
+    if (taxeUnitCents > 0 && taxeQuantity > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'eur',
+          unit_amount: taxeUnitCents,
+          product_data: {
+            name: `Taxe de séjour (${adultsCount} adulte${adultsCount > 1 ? 's' : ''} × ${nights} nuit${nights > 1 ? 's' : ''})`
+          }
+        },
+        quantity: taxeQuantity
+      });
+    }
+
+    // 4. Création de la session de paiement Stripe
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      customer_email: g.email,
+      line_items: lineItems,
+      success_url: `${SITE_URL}/reservation-confirmee?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${SITE_URL}/reservation-annulee`,
+      metadata: {
+        property, checkin, checkout, nights: String(nights), adults: String(adultsCount),
+        prenom: g.prenom, nom: g.nom, adresse: g.adresse, telephone: g.telephone, email: g.email
+      }
+    });
+
+    const totalTTC = ((accommodationCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
+
+    // 5. Email de pré-réservation au client (ne bloque pas la réservation en cas d'échec d'envoi)
+    try {
+      await sendEmail(
+        g.email,
+        'Votre pré-réservation — Les Loges de Véro',
+        `<p>Bonjour ${g.prenom},</p>
+         <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${adultsCount} adulte${adultsCount > 1 ? 's' : ''}.</p>
+         <p><strong>Cette pré-réservation est en attente de confirmation de votre paiement.</strong> Si le paiement n'a pas encore été finalisé, merci de retourner sur la page de paiement pour le compléter.</p>
+         <p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>
+         <p>Vous recevrez une confirmation définitive dès que le paiement sera validé.</p>
+         <p>À bientôt,<br>Les Loges de Véro</p>`
+      );
+    } catch (e) { /* on n'interrompt pas la réservation si l'email échoue */ }
+
+    // 6. Notification au propriétaire
+    try {
+      await sendEmail(
+        OWNER_EMAIL,
+        `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
+        `<p>Nouvelle demande de réservation, ${datesTxt}, pour ${adultsCount} adulte${adultsCount > 1 ? 's' : ''}.</p>
+         <p><strong>${g.prenom} ${g.nom}</strong><br>
+         ${g.adresse}<br>
+         Tél : ${g.telephone}<br>
+         Email : ${g.email}</p>
+         <p>Montant total : ${totalTTC} €</p>
+         <p>En attente de confirmation du paiement.</p>`
+      );
+    } catch (e) { /* idem */ }
+
+    return { statusCode: 200, headers, body: JSON.stringify({ url: session.url }) };
+
+  } catch (err) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || 'Erreur serveur.' }) };
+  }
+};
