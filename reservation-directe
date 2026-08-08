@@ -44,7 +44,7 @@
   .day-cell.past{color:#c9c3b4; cursor:default;}
   .day-cell.available{background:var(--forest-soft); color:var(--forest);}
   .day-cell.available:hover{outline:1px solid var(--forest);}
-  .day-cell.booked{background:repeating-linear-gradient(135deg,var(--brick-soft),var(--brick-soft) 4px,#eeded6 4px,#eeded6 8px); color:var(--brick); text-decoration:line-through; cursor:not-allowed;}
+  .day-cell.booked{background:repeating-linear-gradient(135deg,var(--brick-soft),var(--brick-soft) 4px,#eeded6 4px,#eeded6 8px); color:var(--brick); text-decoration:line-through; cursor:pointer;}
   .day-cell.today{box-shadow:0 0 0 2px var(--dragee);}
   .day-cell.selected-edge{background:var(--river); color:#fff; font-weight:700;}
   .day-cell.selected-range{background:var(--river-soft); color:var(--river);}
@@ -98,11 +98,19 @@
   </div>
 
   <div class="guests-row">
-    <label>Nombre d'adultes</label>
+    <label>Adultes</label>
     <div class="stepper">
       <button id="guests-minus" type="button">−</button>
       <span id="guests-count">2</span>
       <button id="guests-plus" type="button">+</button>
+    </div>
+  </div>
+  <div class="guests-row">
+    <label>Enfants</label>
+    <div class="stepper">
+      <button id="children-minus" type="button">−</button>
+      <span id="children-count">0</span>
+      <button id="children-plus" type="button">+</button>
     </div>
   </div>
 
@@ -192,6 +200,7 @@ let booked = {}; // { duplex: Set, rdc: Set }
 let tarifs = null;
 let selection = { checkin: null, checkout: null };
 let adults = 2;
+let children = 0;
 
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -252,25 +261,37 @@ function renderCalendar(){
     else cls += ' available';
     if(dStr === todayStr) cls += ' today';
 
-    if(!isPast && !isBooked){
+    if(!isPast){
       if(selection.checkin === dStr || selection.checkout === dStr) cls += ' selected-edge';
       else if(selection.checkin && selection.checkout && dStr > selection.checkin && dStr < selection.checkout) cls += ' selected-range';
-      cell.addEventListener('click', () => onDayClick(d, dStr));
+      cell.addEventListener('click', () => onDayClick(d, dStr, isBooked));
     }
     cell.className = cls;
     grid.appendChild(cell);
   }
 }
 
-function onDayClick(d, dStr){
+function onDayClick(d, dStr, isBookedDay){
   if(!selection.checkin || (selection.checkin && selection.checkout)){
+    // Nouvelle sélection : la nuit d'arrivée doit être libre.
+    if(isBookedDay){
+      setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d\'arrivée libre.', true);
+      return;
+    }
     selection = { checkin: dStr, checkout: null };
+    setStatus('');
   } else {
     if(dStr <= selection.checkin){
+      if(isBookedDay){
+        setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d\'arrivée libre.', true);
+        return;
+      }
       selection = { checkin: dStr, checkout: null };
     } else if(hasBookedBetween(new Date(selection.checkin), d)){
-      setStatus('Une date réservée se trouve dans cette période — choisissez un autre départ.', true);
-      selection = { checkin: dStr, checkout: null };
+      // Le départ (jour J, exclusif) peut coïncider avec l'arrivée d'un autre client le même jour J.
+      // Seules les nuits strictement avant J comptent — si l'une d'elles est occupée, la période ne convient pas.
+      setStatus('Une nuit réservée se trouve dans cette période — choisissez un autre départ.', true);
+      selection = isBookedDay ? { checkin: null, checkout: null } : { checkin: dStr, checkout: null };
     } else {
       selection.checkout = dStr;
       setStatus('');
@@ -320,6 +341,16 @@ function updateSummary(){
   const t = tarifs[currentProp];
   const nights = Math.round((new Date(selection.checkout) - new Date(selection.checkin)) / 86400000);
 
+  if(t && t.maxGuests && (adults + children) > t.maxGuests){
+    placeholder.style.display = 'block';
+    placeholder.textContent = `Ce logement accueille au maximum ${t.maxGuests} personnes (adultes + enfants).`;
+    details.style.display = 'none';
+    document.getElementById('guest-form').classList.remove('visible');
+    btn.disabled = true;
+    btn.textContent = 'Capacité dépassée';
+    return;
+  }
+
   if(t && nights < (t.minNights || 1)){
     placeholder.style.display = 'block';
     placeholder.textContent = `Séjour minimum de ${t.minNights} nuits pour ce logement.`;
@@ -341,7 +372,7 @@ function updateSummary(){
   const total = Math.round((nightly * nights + cleaning + taxeSejour) * 100) / 100;
 
   document.getElementById('summary-dates').textContent =
-    `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''}`;
+    `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''} — ${adults} adulte${adults>1?'s':''}${children>0 ? ', ' + children + ' enfant' + (children>1?'s':'') : ''}`;
   document.getElementById('row-nightly').innerHTML = `<span>${nightly} € × ${nights} nuit${nights>1?'s':''}</span><span>${nightly*nights} €</span>`;
   document.getElementById('row-cleaning').innerHTML = cleaning
     ? `<span>Frais de ménage</span><span>${cleaning} €</span>` : '';
@@ -363,7 +394,14 @@ document.getElementById('guests-minus').addEventListener('click', () => {
 });
 document.getElementById('guests-plus').addEventListener('click', () => {
   const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
-  if(adults < max){ adults++; document.getElementById('guests-count').textContent = adults; updateSummary(); }
+  if(adults + children < max){ adults++; document.getElementById('guests-count').textContent = adults; updateSummary(); }
+});
+document.getElementById('children-minus').addEventListener('click', () => {
+  if(children > 0){ children--; document.getElementById('children-count').textContent = children; updateSummary(); }
+});
+document.getElementById('children-plus').addEventListener('click', () => {
+  const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
+  if(adults + children < max){ children++; document.getElementById('children-count').textContent = children; updateSummary(); }
 });
 
 document.getElementById('book-btn').addEventListener('click', async () => {
@@ -374,7 +412,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     const res = await fetch(FUNCTION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, guest: getGuestInfo() })
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, children, guest: getGuestInfo() })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
@@ -397,6 +435,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     selection = { checkin: null, checkout: null };
     const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
     if(adults > max){ adults = max; document.getElementById('guests-count').textContent = adults; }
+    if(adults + children > max){ children = Math.max(0, max - adults); document.getElementById('children-count').textContent = children; }
     setStatus('Chargement des disponibilités…');
     if(!booked[currentProp]) await loadAvailability(currentProp);
     setStatus('');
