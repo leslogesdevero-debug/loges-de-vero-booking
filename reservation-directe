@@ -22,6 +22,12 @@
   .app-header p{margin:0; color:var(--ink-soft); font-size:13px;}
 
   .tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .guests-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:6px;}
+  .guests-row label{font-size:13px; font-weight:600; color:var(--ink-soft);}
+  .stepper{display:flex; align-items:center; gap:10px;}
+  .stepper button{width:26px; height:26px; border:1px solid var(--line); border-radius:4px; background:var(--limestone); font-size:15px; cursor:pointer; color:var(--river);}
+  .stepper button:disabled{opacity:.4; cursor:not-allowed;}
+  .stepper span{min-width:16px; text-align:center; font-weight:700;}
   .tab{flex:1; padding:10px; text-align:center; border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; font-size:14px; color:var(--ink-soft);}
   .tab.active{background:var(--river); color:#fff; border-color:var(--river);}
 
@@ -77,6 +83,15 @@
     <div class="tab" data-prop="rdc">Le Rez-de-chaussée</div>
   </div>
 
+  <div class="guests-row">
+    <label>Nombre d'adultes</label>
+    <div class="stepper">
+      <button id="guests-minus" type="button">−</button>
+      <span id="guests-count">2</span>
+      <button id="guests-plus" type="button">+</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="calendar-nav">
       <button class="nav-btn" id="prev-btn">‹</button>
@@ -93,6 +108,7 @@
         <div class="summary-dates" id="summary-dates"></div>
         <div class="summary-row" id="row-nightly"></div>
         <div class="summary-row" id="row-cleaning"></div>
+        <div class="summary-row" id="row-taxe"></div>
         <div class="summary-row total" id="row-total"></div>
       </div>
     </div>
@@ -130,6 +146,7 @@ let view = new Date(today.getFullYear(), today.getMonth(), 1);
 let booked = {}; // { duplex: Set, rdc: Set }
 let tarifs = null;
 let selection = { checkin: null, checkout: null };
+let adults = 2;
 
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -248,23 +265,35 @@ function updateSummary(){
 
   const nightly = t ? t.nightly : 0;
   const cleaning = t ? (t.cleaningFee || 0) : 0;
-  const total = nightly * nights + cleaning;
+  const taxeParUnite = t ? (t.taxeSejourParAdulteParNuit || 0) : 0;
+  const taxeSejour = Math.round(taxeParUnite * adults * nights * 100) / 100;
+  const total = Math.round((nightly * nights + cleaning + taxeSejour) * 100) / 100;
 
   document.getElementById('summary-dates').textContent =
     `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''}`;
   document.getElementById('row-nightly').innerHTML = `<span>${nightly} € × ${nights} nuit${nights>1?'s':''}</span><span>${nightly*nights} €</span>`;
   document.getElementById('row-cleaning').innerHTML = cleaning
     ? `<span>Frais de ménage</span><span>${cleaning} €</span>` : '';
-  document.getElementById('row-total').innerHTML = `<span>Total</span><span>${total} €</span>`;
+  document.getElementById('row-taxe').innerHTML = taxeSejour
+    ? `<span>Taxe de séjour (${adults} adulte${adults>1?'s':''} × ${nights} nuit${nights>1?'s':''})</span><span>${taxeSejour.toFixed(2)} €</span>` : '';
+  document.getElementById('row-total').innerHTML = `<span>Total</span><span>${total.toFixed(2)} €</span>`;
 
   btn.disabled = false;
-  btn.textContent = `Réserver et payer ${total} €`;
+  btn.textContent = `Réserver et payer ${total.toFixed(2)} €`;
 }
 
 function formatFR(dStr){
   const [y,m,d] = dStr.split('-');
   return `${d}/${m}/${y}`;
 }
+
+document.getElementById('guests-minus').addEventListener('click', () => {
+  if(adults > 1){ adults--; document.getElementById('guests-count').textContent = adults; updateSummary(); }
+});
+document.getElementById('guests-plus').addEventListener('click', () => {
+  const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
+  if(adults < max){ adults++; document.getElementById('guests-count').textContent = adults; updateSummary(); }
+});
 
 document.getElementById('book-btn').addEventListener('click', async () => {
   const btn = document.getElementById('book-btn');
@@ -274,7 +303,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     const res = await fetch(FUNCTION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout })
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
@@ -295,6 +324,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     currentProp = tab.dataset.prop;
     selection = { checkin: null, checkout: null };
+    const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
+    if(adults > max){ adults = max; document.getElementById('guests-count').textContent = adults; }
     setStatus('Chargement des disponibilités…');
     if(!booked[currentProp]) await loadAvailability(currentProp);
     setStatus('');
