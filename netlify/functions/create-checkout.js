@@ -76,7 +76,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée.' }) };
 
   try {
-    const { property, checkin, checkout } = JSON.parse(event.body || '{}');
+    const { property, checkin, checkout, adults } = JSON.parse(event.body || '{}');
 
     if (!PROPERTY_NAMES[property]) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Logement inconnu.' }) };
@@ -85,9 +85,14 @@ exports.handler = async (event) => {
     const start = new Date(checkin + 'T00:00:00Z');
     const end = new Date(checkout + 'T00:00:00Z');
     const nights = Math.round((end - start) / 86400000);
+    const adultsCount = parseInt(adults, 10);
 
     if (!checkin || !checkout || !(nights > 0)) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Dates invalides.' }) };
+    }
+
+    if (!Number.isInteger(adultsCount) || adultsCount < 1) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nombre d\'adultes invalide.' }) };
     }
 
     // 1. Tarifs à jour (fichier modifiable par la propriétaire, sans redéploiement)
@@ -101,42 +106,13 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: `Séjour minimum de ${tarif.minNights} nuits pour ce logement.` }) };
     }
 
+    if (tarif.maxGuests && adultsCount > tarif.maxGuests) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: `Ce logement accueille au maximum ${tarif.maxGuests} adultes.` }) };
+    }
+
     // 2. Disponibilité revérifiée côté serveur (ne jamais faire confiance au client)
     const booked = await getBookedSet(property);
     const d = new Date(start);
     while (d < end) {
       if (booked.has(fmt(d))) {
         return { statusCode: 409, headers, body: JSON.stringify({ error: 'Ces dates viennent d\'être réservées par quelqu\'un d\'autre. Merci de choisir une autre période.' }) };
-      }
-      d.setUTCDate(d.getUTCDate() + 1);
-    }
-
-    // 3. Calcul du montant total
-    const cleaningFee = tarif.cleaningFee || 0;
-    const totalCents = Math.round((tarif.nightly * nights + cleaningFee) * 100);
-
-    // 4. Création de la session de paiement Stripe
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          unit_amount: totalCents,
-          product_data: {
-            name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`
-          }
-        },
-        quantity: 1
-      }],
-      success_url: `${SITE_URL}/reservation-confirmee?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${SITE_URL}/reservation-annulee`,
-      metadata: { property, checkin, checkout, nights: String(nights) }
-    });
-
-    return { statusCode: 200, headers, body: JSON.stringify({ url: session.url }) };
-
-  } catch (err) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || 'Erreur serveur.' }) };
-  }
-};
