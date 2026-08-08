@@ -94,7 +94,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée.' }) };
 
   try {
-    const { property, checkin, checkout, adults, guest } = JSON.parse(event.body || '{}');
+    const { property, checkin, checkout, adults, children, guest } = JSON.parse(event.body || '{}');
 
     const g = guest || {};
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email || '');
@@ -111,6 +111,7 @@ exports.handler = async (event) => {
     const end = new Date(checkout + 'T00:00:00Z');
     const nights = Math.round((end - start) / 86400000);
     const adultsCount = parseInt(adults, 10);
+    const childrenCount = parseInt(children, 10) || 0;
 
     if (!checkin || !checkout || !(nights > 0)) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Dates invalides.' }) };
@@ -118,6 +119,10 @@ exports.handler = async (event) => {
 
     if (!Number.isInteger(adultsCount) || adultsCount < 1) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nombre d\'adultes invalide.' }) };
+    }
+
+    if (!Number.isInteger(childrenCount) || childrenCount < 0) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Nombre d\'enfants invalide.' }) };
     }
 
     // 1. Tarifs à jour (fichier modifiable par la propriétaire, sans redéploiement)
@@ -131,8 +136,8 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: `Séjour minimum de ${tarif.minNights} nuits pour ce logement.` }) };
     }
 
-    if (tarif.maxGuests && adultsCount > tarif.maxGuests) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: `Ce logement accueille au maximum ${tarif.maxGuests} adultes.` }) };
+    if (tarif.maxGuests && (adultsCount + childrenCount) > tarif.maxGuests) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: `Ce logement accueille au maximum ${tarif.maxGuests} personnes.` }) };
     }
 
     // 2. Disponibilité revérifiée côté serveur (ne jamais faire confiance au client)
@@ -185,12 +190,13 @@ exports.handler = async (event) => {
       success_url: `${SITE_URL}/reservation-confirmee?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE_URL}/reservation-annulee`,
       metadata: {
-        property, checkin, checkout, nights: String(nights), adults: String(adultsCount),
+        property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount),
         prenom: g.prenom, nom: g.nom, adresse: g.adresse, telephone: g.telephone, email: g.email
       }
     });
 
     const totalTTC = ((accommodationCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
     // 5. Email de pré-réservation au client (ne bloque pas la réservation en cas d'échec d'envoi)
@@ -199,7 +205,7 @@ exports.handler = async (event) => {
         g.email,
         'Votre pré-réservation — Les Loges de Véro',
         `<p>Bonjour ${g.prenom},</p>
-         <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${adultsCount} adulte${adultsCount > 1 ? 's' : ''}.</p>
+         <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${occupantsTxt}.</p>
          <p><strong>Cette pré-réservation est en attente de confirmation de votre paiement.</strong> Si le paiement n'a pas encore été finalisé, merci de retourner sur la page de paiement pour le compléter.</p>
          <p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>
          <p>Vous recevrez une confirmation définitive dès que le paiement sera validé.</p>
@@ -212,7 +218,7 @@ exports.handler = async (event) => {
       await sendEmail(
         OWNER_EMAIL,
         `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
-        `<p>Nouvelle demande de réservation, ${datesTxt}, pour ${adultsCount} adulte${adultsCount > 1 ? 's' : ''}.</p>
+        `<p>Nouvelle demande de réservation, ${datesTxt}, pour ${occupantsTxt}.</p>
          <p><strong>${g.prenom} ${g.nom}</strong><br>
          ${g.adresse}<br>
          Tél : ${g.telephone}<br>
