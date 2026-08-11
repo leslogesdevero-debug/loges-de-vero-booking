@@ -15,7 +15,7 @@ const ICS_URLS = {
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 const FROM_EMAIL = 'Les Loges de Véro <onboarding@resend.dev>';
-const OWNER_EMAIL = 'contact@leslogesdevero.fr';
+const OWNER_EMAIL = 'leslogesdevero@gmail.com';
 // --------------------------------------------------
 
 function corsHeaders(origin) {
@@ -177,8 +177,8 @@ async function handleCheckout(request, env, origin) {
       payment_method_types: ['card'],
       customer_email: g.email,
       line_items: lineItems,
-      success_url: `${SITE_URL}/reservation-confirmee?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${SITE_URL}/reservation-annulee`,
+      success_url: `${origin}/reservation-confirmee.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/reservation-annulee.html`,
       metadata: {
         property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount),
         prenom: g.prenom, nom: g.nom, adresse: g.adresse, telephone: g.telephone, email: g.email
