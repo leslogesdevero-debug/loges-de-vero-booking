@@ -1,15 +1,15 @@
 {
   "duplex": {
-    "nightly": 95,
-    "cleaningFee": 30,
-    "minNights": 2,
+    "nightly": 70,
+    "cleaningFee": 40,
+    "minNights": 1,
     "maxGuests": 4,
     "taxeSejourParAdulteParNuit": 1.10
   },
   "rdc": {
-    "nightly": 120,
-    "cleaningFee": 30,
-    "minNights": 2,
+    "nightly": 110,
+    "cleaningFee": 50,
+    "minNights": 1,
     "maxGuests": 6,
     "taxeSejourParAdulteParNuit": 1.10
   }
