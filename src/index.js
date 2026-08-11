@@ -125,7 +125,7 @@ async function handleCheckout(request, env, origin) {
       return new Response(JSON.stringify({ error: "Nombre d'enfants invalide." }), { status: 400, headers });
     }
 
-    const tarifsRes = await fetch(new URL(TARIFS_PATH, request.url), { cache: 'no-store' });
+    const tarifsRes = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
     if (!tarifsRes.ok) throw new Error('Impossible de charger les tarifs.');
     const tarifs = await tarifsRes.json();
     const tarif = tarifs[property];
