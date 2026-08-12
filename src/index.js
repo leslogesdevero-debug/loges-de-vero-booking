@@ -73,6 +73,31 @@ async function sendEmail(env, to, subject, html) {
   });
 }
 
+function getNightlyRate(tarif, dateStr) {
+  if (tarif.saisons) {
+    for (const s of tarif.saisons) {
+      if (dateStr >= s.debut && dateStr <= s.fin) return s.nightly;
+    }
+  }
+  return tarif.nightlyDefault;
+}
+function getAccommodationSubtotal(tarif, checkinDate, nights) {
+  let subtotal = 0;
+  const d = new Date(checkinDate);
+  for (let i = 0; i < nights; i++) {
+    subtotal += getNightlyRate(tarif, fmt(d));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return subtotal;
+}
+function getDiscountPercent(tarif, nights) {
+  let pct = 0;
+  for (const r of (tarif.remises || [])) {
+    if (nights >= r.minNuits && r.pourcentage > pct) pct = r.pourcentage;
+  }
+  return pct;
+}
+
 async function handleAvailability(request, origin) {
   const headers = { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   const url = new URL(request.url);
@@ -147,8 +172,12 @@ async function handleCheckout(request, env, origin) {
       d.setUTCDate(d.getUTCDate() + 1);
     }
 
+    const subtotal = getAccommodationSubtotal(tarif, start, nights);
+    const discountPct = getDiscountPercent(tarif, nights);
+    const discountAmount = Math.round(subtotal * discountPct / 100 * 100) / 100;
+    const accommodationCents = Math.round((subtotal - discountAmount) * 100);
     const cleaningFee = tarif.cleaningFee || 0;
-    const accommodationCents = Math.round((tarif.nightly * nights + cleaningFee) * 100);
+    const cleaningCents = Math.round(cleaningFee * 100);
     const taxeParUnite = tarif.taxeSejourParAdulteParNuit || 0;
     const taxeUnitCents = Math.round(taxeParUnite * 100);
     const taxeQuantity = adultsCount * nights;
@@ -157,10 +186,20 @@ async function handleCheckout(request, env, origin) {
       price_data: {
         currency: 'eur',
         unit_amount: accommodationCents,
-        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})` }
+        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${discountPct ? ` — remise longue durée -${discountPct}% incluse` : ''}` }
       },
       quantity: 1
     }];
+    if (cleaningCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'eur',
+          unit_amount: cleaningCents,
+          product_data: { name: `Ménage${tarif.cleaningFeeDetail ? ' (' + tarif.cleaningFeeDetail + ')' : ''}` }
+        },
+        quantity: 1
+      });
+    }
     if (taxeUnitCents > 0 && taxeQuantity > 0) {
       lineItems.push({
         price_data: {
@@ -185,7 +224,7 @@ async function handleCheckout(request, env, origin) {
       }
     });
 
-    const totalTTC = ((accommodationCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const totalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
     const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
