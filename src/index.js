@@ -1,4 +1,4 @@
-// ===========================================================================
+/ ===========================================================================
 // Worker Cloudflare unique : sert le site (public/) ET gère deux routes
 // dynamiques, /create-checkout et /get-availability.
 // Remplace l'ancienne approche Cloudflare Pages (functions/*.js séparés).
@@ -97,6 +97,12 @@ function getDiscountPercent(tarif, nights) {
   }
   return pct;
 }
+function getLastMinutePercent(tarif, checkin) {
+  const rdm = tarif.remiseDerniereMinute;
+  if (!rdm) return 0;
+  const hoursUntilArrival = (new Date(checkin + 'T00:00:00Z') - new Date()) / 3600000;
+  return (hoursUntilArrival >= 0 && hoursUntilArrival < rdm.seuilHeures) ? rdm.pourcentage : 0;
+}
 
 async function handleAvailability(request, origin) {
   const headers = { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
@@ -174,7 +180,9 @@ async function handleCheckout(request, env, origin) {
 
     const subtotal = getAccommodationSubtotal(tarif, start, nights);
     const discountPct = getDiscountPercent(tarif, nights);
-    const discountAmount = Math.round(subtotal * discountPct / 100 * 100) / 100;
+    const lastMinutePct = getLastMinutePercent(tarif, checkin);
+    const totalDiscountPct = discountPct + lastMinutePct;
+    const discountAmount = Math.round(subtotal * totalDiscountPct / 100 * 100) / 100;
     const accommodationCents = Math.round((subtotal - discountAmount) * 100);
     const cleaningFee = tarif.cleaningFee || 0;
     const cleaningCents = Math.round(cleaningFee * 100);
@@ -186,7 +194,7 @@ async function handleCheckout(request, env, origin) {
       price_data: {
         currency: 'eur',
         unit_amount: accommodationCents,
-        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${discountPct ? ` — remise longue durée -${discountPct}% incluse` : ''}` }
+        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${totalDiscountPct ? ` — remise -${totalDiscountPct}% incluse` : ''}` }
       },
       quantity: 1
     }];
