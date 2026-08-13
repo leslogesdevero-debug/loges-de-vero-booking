@@ -62,12 +62,17 @@ async function getBookedSet(property) {
   return set;
 }
 async function sendEmail(env, to, subject, html) {
-  if (!env.RESEND_API_KEY) return;
-  await fetch('https://api.resend.com/emails', {
+  if (!env.RESEND_API_KEY) throw new Error('Service d\'email non configuré.');
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html })
   });
+  if (!res.ok) {
+    const detail = await res.text();
+    console.error('Erreur Resend', res.status, detail);
+    throw new Error('Échec de l\'envoi de l\'email.');
+  }
 }
 
 function getNightlyRate(tarif, dateStr) {
@@ -216,6 +221,26 @@ async function handleCheckout(request, env, origin) {
       });
     }
 
+    const totalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}`;
+    const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
+
+    // L'email de confirmation au client est obligatoire : s'il échoue, on
+    // n'ouvre pas le paiement plutôt que de laisser une réservation sans
+    // confirmation envoyée.
+    try {
+      await sendEmail(env, g.email, 'Votre pré-réservation — Les Loges de Véro',
+        `<p>Bonjour ${g.prenom},</p>
+         <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${occupantsTxt}.</p>
+         <p><strong>Cette pré-réservation est en attente de confirmation de votre paiement.</strong></p>
+         <p>Vous recevrez un second email de confirmation définitive dès que le paiement sera validé.</p>
+         <p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>
+         <p>À bientôt,<br>Les Loges de Véro</p>`);
+    } catch (e) {
+      console.error('Échec email client — réservation bloquée:', e.message);
+      return new Response(JSON.stringify({ error: "Impossible d'envoyer l'email de confirmation pour le moment. Merci de réessayer dans quelques instants ou de nous contacter directement." }), { status: 502, headers });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -229,30 +254,53 @@ async function handleCheckout(request, env, origin) {
       }
     });
 
-    const totalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
-    const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}`;
-    const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
-
-    try {
-      await sendEmail(env, g.email, 'Votre pré-réservation — Les Loges de Véro',
-        `<p>Bonjour ${g.prenom},</p>
-         <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${occupantsTxt}.</p>
-         <p><strong>Cette pré-réservation est en attente de confirmation de votre paiement.</strong></p>
-         <p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>
-         <p>À bientôt,<br>Les Loges de Véro</p>`);
-    } catch (e) {}
+    // La notification au propriétaire reste non-bloquante : un souci ici ne
+    // doit pas empêcher un client de payer.
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
          <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
          <p>Montant total : ${totalTTC} €</p>`);
-    } catch (e) {}
+    } catch (e) { console.error('Échec email propriétaire:', e.message); }
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers });
 
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
   }
+}
+
+async function handleStripeWebhook(request, env) {
+  const stripe = Stripe(env.STRIPE_SECRET_KEY);
+  const sig = request.headers.get('stripe-signature');
+  const body = await request.text();
+
+  let event;
+  try {
+    event = await stripe.webhooks.constructEventAsync(body, sig, env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Signature webhook Stripe invalide:', err.message);
+    return new Response('Signature invalide.', { status: 400 });
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const m = session.metadata || {};
+    try {
+      await sendEmail(env, m.email, 'Réservation confirmée — Les Loges de Véro',
+        `<p>Bonjour ${m.prenom},</p>
+         <p>Votre paiement a bien été validé. Votre réservation pour <strong>${PROPERTY_NAMES[m.property] || m.property}</strong>, du ${m.checkin} au ${m.checkout} (${m.nights} nuit${Number(m.nights) > 1 ? 's' : ''}), est maintenant <strong>confirmée</strong>.</p>
+         <p>Nous avons hâte de vous accueillir aux Loges de Véro !</p>
+         <p>À bientôt,<br>Les Loges de Véro</p>`);
+    } catch (e) { console.error('Échec email confirmation définitive:', e.message); }
+
+    try {
+      await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
+        `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>`);
+    } catch (e) { console.error('Échec email propriétaire (confirmation):', e.message); }
+  }
+
+  return new Response('ok', { status: 200 });
 }
 
 export default {
@@ -269,8 +317,10 @@ export default {
     if (url.pathname === '/create-checkout' && request.method === 'POST') {
       return handleCheckout(request, env, origin);
     }
+    if (url.pathname === '/stripe-webhook' && request.method === 'POST') {
+      return handleStripeWebhook(request, env);
+    }
     // Tout le reste : fichiers statiques servis depuis public/
     return env.ASSETS.fetch(request);
   }
 };
-
