@@ -12,7 +12,7 @@ const ICS_URLS = {
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
-const FROM_EMAIL = 'Les Loges de Véro <onboarding@resend.dev>';
+const FROM_EMAIL = 'Les Loges de Véro <contact@leslogesdevero.fr>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
 
 function corsHeaders(origin) {
