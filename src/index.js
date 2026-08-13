@@ -1,8 +1,6 @@
-// ===========================================================================
 // Worker Cloudflare unique : sert le site (public/) ET gère deux routes
 // dynamiques, /create-checkout et /get-availability.
 // Remplace l'ancienne approche Cloudflare Pages (functions/*.js séparés).
-// ===========================================================================
 
 import Stripe from 'stripe';
 
@@ -16,7 +14,6 @@ const ICS_URLS = {
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 const FROM_EMAIL = 'Les Loges de Véro <onboarding@resend.dev>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
-// --------------------------------------------------
 
 function corsHeaders(origin) {
   return {
