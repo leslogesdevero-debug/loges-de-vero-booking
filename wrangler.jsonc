@@ -1,5 +1,5 @@
 {
-  "name": "loges-de-vero-booking",
+  "name": "loges-de-vero-bookings",
   "compatibility_date": "2026-08-09",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.js",
