@@ -467,7 +467,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
-    window.location.href = data.url;
+    window.top.location.href = data.url;
   }catch(e){
     setStatus(e.message, true);
     btn.disabled = false;
