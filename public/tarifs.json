@@ -1,12 +1,12 @@
 {
   "duplex": {
-    "nightlyDefault": 85,
+    "nightlyDefault": 70,
     "saisons": [
-      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 85 },
-      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 105 },
-      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 130 },
-      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 105 },
-      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 85 }
+      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 70 },
+      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 76 },
+      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 85 },
+      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 76 },
+      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 70 }
     ],
     "remises": [
       { "minNuits": 7, "pourcentage": 5 },
@@ -14,20 +14,20 @@
       { "minNuits": 28, "pourcentage": 15 }
     ],
     "remiseDerniereMinute": { "seuilHeures": 48, "pourcentage": 10 },
-    "cleaningFee": 30,
+    "cleaningFee": 48,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
-    "minNights": 2,
+    "minNights": 1,
     "maxGuests": 4,
     "taxeSejourParAdulteParNuit": 1.10
   },
   "rdc": {
-    "nightlyDefault": 110,
+    "nightlyDefault": 90,
     "saisons": [
-      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 110 },
-      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 135 },
-      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 160 },
-      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 135 },
-      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 110 }
+      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 90 },
+      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 100 },
+      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 115 },
+      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 100 },
+      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 90 }
     ],
     "remises": [
       { "minNuits": 7, "pourcentage": 5 },
@@ -35,9 +35,9 @@
       { "minNuits": 28, "pourcentage": 15 }
     ],
     "remiseDerniereMinute": { "seuilHeures": 48, "pourcentage": 10 },
-    "cleaningFee": 30,
+    "cleaningFee": 60,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
-    "minNights": 2,
+    "minNights": 1,
     "maxGuests": 6,
     "taxeSejourParAdulteParNuit": 1.10
   }
