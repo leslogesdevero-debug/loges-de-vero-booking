@@ -154,8 +154,24 @@
       </div>
       <div class="form-row">
         <div class="form-field full">
-          <label for="f-adresse">Adresse complète *</label>
-          <textarea id="f-adresse" required placeholder="N°, rue, code postal, ville, pays"></textarea>
+          <label for="f-adresse">Adresse (n°, rue) *</label>
+          <input type="text" id="f-adresse" required placeholder="12 rue de la Paix">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="f-codepostal">Code postal *</label>
+          <input type="text" id="f-codepostal" required placeholder="55100">
+        </div>
+        <div class="form-field">
+          <label for="f-ville">Ville *</label>
+          <input type="text" id="f-ville" required placeholder="Verdun">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label for="f-pays">Pays *</label>
+          <input type="text" id="f-pays" required placeholder="France">
         </div>
       </div>
       <div class="form-row">
@@ -311,11 +327,14 @@ function isGuestFormValid(){
   const prenom = document.getElementById('f-prenom').value.trim();
   const nom = document.getElementById('f-nom').value.trim();
   const adresse = document.getElementById('f-adresse').value.trim();
+  const codePostal = document.getElementById('f-codepostal').value.trim();
+  const ville = document.getElementById('f-ville').value.trim();
+  const pays = document.getElementById('f-pays').value.trim();
   const telephone = document.getElementById('f-telephone').value.trim();
   const email = document.getElementById('f-email').value.trim();
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const telOk = telephone.replace(/[^0-9+]/g,'').length >= 8;
-  return prenom && nom && adresse && telOk && emailOk;
+  return prenom && nom && adresse && codePostal && ville && pays && telOk && emailOk;
 }
 
 function getGuestInfo(){
@@ -323,6 +342,9 @@ function getGuestInfo(){
     prenom: document.getElementById('f-prenom').value.trim(),
     nom: document.getElementById('f-nom').value.trim(),
     adresse: document.getElementById('f-adresse').value.trim(),
+    codePostal: document.getElementById('f-codepostal').value.trim(),
+    ville: document.getElementById('f-ville').value.trim(),
+    pays: document.getElementById('f-pays').value.trim(),
     telephone: document.getElementById('f-telephone').value.trim(),
     email: document.getElementById('f-email').value.trim()
   };
