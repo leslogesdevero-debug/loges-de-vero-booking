@@ -12,8 +12,15 @@ const ICS_URLS = {
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
+// -------- Synchronisation Superhote (à compléter avec vos identifiants) --------
+const SUPERHOTE_PROPERTY_KEYS = {
+  duplex: 'À_COMPLETER_property_key_duplex',
+  rdc: 'À_COMPLETER_property_key_rdc'
+};
+// ---------------------------------------------------------------------------
 const FROM_EMAIL = 'Les Loges de Véro <contact@leslogesdevero.fr>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
+const TELEGRAM_CHAT_ID = 'A_COMPLETER'; // votre identifiant de conversation Telegram
 
 function corsHeaders(origin) {
   return {
@@ -72,6 +79,20 @@ async function sendEmail(env, to, subject, html) {
     const detail = await res.text();
     console.error('Erreur Resend', res.status, detail);
     throw new Error('Échec de l\'envoi de l\'email.');
+  }
+}
+
+async function sendTelegram(env, text) {
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error('Telegram non configuré.');
+  const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text })
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    console.error('Erreur Telegram', res.status, detail);
+    throw new Error('Échec de l\'envoi Telegram.');
   }
 }
 
@@ -138,7 +159,7 @@ async function handleCheckout(request, env, origin) {
     const g = guest || {};
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email || '');
     const telOk = (g.telephone || '').replace(/[^0-9+]/g, '').length >= 8;
-    if (!g.prenom || !g.nom || !g.adresse || !telOk || !emailOk) {
+    if (!g.prenom || !g.nom || !g.adresse || !g.codePostal || !g.ville || !g.pays || !telOk || !emailOk) {
       return new Response(JSON.stringify({ error: 'Merci de renseigner des coordonnées complètes et valides.' }), { status: 400, headers });
     }
 
@@ -250,7 +271,7 @@ async function handleCheckout(request, env, origin) {
       cancel_url: `${origin}/reservation-annulee.html`,
       metadata: {
         property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount),
-        prenom: g.prenom, nom: g.nom, adresse: g.adresse, telephone: g.telephone, email: g.email
+        prenom: g.prenom, nom: g.nom, adresse: g.adresse, codePostal: g.codePostal, ville: g.ville, pays: g.pays, telephone: g.telephone, email: g.email
       }
     });
 
@@ -259,7 +280,7 @@ async function handleCheckout(request, env, origin) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
-         <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
+         <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>${g.codePostal} ${g.ville}<br>${g.pays}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
          <p>Montant total : ${totalTTC} €</p>`);
     } catch (e) { console.error('Échec email propriétaire:', e.message); }
 
@@ -267,6 +288,41 @@ async function handleCheckout(request, env, origin) {
 
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
+  }
+}
+
+async function pushToSuperhote(env, m, totalTTC) {
+  if (!env.SUPERHOTE_API_KEY) throw new Error('SUPERHOTE_API_KEY non configurée.');
+  const propertyKey = SUPERHOTE_PROPERTY_KEYS[m.property];
+  if (!propertyKey) throw new Error('property_key Superhote manquant pour ' + m.property);
+
+  const res = await fetch('https://app.superhote.com/api/v2/create-reservation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: env.SUPERHOTE_API_KEY,
+      property_key: propertyKey,
+      checking: m.checkin,
+      checkout: m.checkout,
+      nbr_adults: Number(m.adults) || 1,
+      nbr_children: Number(m.children) || 0,
+      first_name: m.prenom,
+      last_name: m.nom,
+      phone: m.telephone,
+      email: m.email,
+      address: m.adresse,
+      zip_code: m.codePostal,
+      city: m.ville,
+      country: m.pays,
+      status: 'confirmed',
+      price: totalTTC
+    })
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    console.error('Erreur Superhote', res.status, detail);
+    throw new Error('Échec de la synchronisation Superhote.');
   }
 }
 
@@ -294,10 +350,29 @@ async function handleStripeWebhook(request, env) {
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) { console.error('Échec email confirmation définitive:', e.message); }
 
+    let superhoteOk = true;
+    let superhoteErrorMsg = '';
+    try {
+      await pushToSuperhote(env, m, (session.amount_total / 100).toFixed(2));
+    } catch (e) {
+      superhoteOk = false;
+      superhoteErrorMsg = e.message;
+      console.error('Échec synchronisation Superhote:', e.message);
+    }
+
     try {
       await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
-        `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>`);
+        `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>
+         ${superhoteOk
+           ? `<p>✅ Synchronisée automatiquement avec Superhote.</p>`
+           : `<p><strong>⚠️ La synchronisation automatique avec Superhote a échoué (${superhoteErrorMsg}). Merci de bloquer ces dates manuellement dans Superhote pour éviter une double réservation.</strong></p>`}`);
     } catch (e) { console.error('Échec email propriétaire (confirmation):', e.message); }
+
+    try {
+      const totalTTC = (session.amount_total / 100).toFixed(2);
+      await sendTelegram(env,
+        `Nouvelle réservation payée : ${PROPERTY_NAMES[m.property] || m.property}, du ${m.checkin} au ${m.checkout}. ${m.prenom} ${m.nom} - ${m.telephone}. ${totalTTC}€.`);
+    } catch (e) { console.error('Échec Telegram propriétaire:', e.message); }
   }
 
   return new Response('ok', { status: 200 });
