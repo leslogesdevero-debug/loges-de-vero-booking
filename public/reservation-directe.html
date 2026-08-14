@@ -85,6 +85,9 @@
   .form-field textarea{resize:vertical; min-height:44px;}
   .form-field input:invalid:not(:placeholder-shown){border-color:var(--brick);}
   .form-note{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .cgv-check{display:flex; align-items:flex-start; gap:8px; margin-top:14px; font-size:12px; color:var(--ink-soft);}
+  .cgv-check input{margin-top:2px;}
+  .cgv-check a{color:var(--river); font-weight:600;}
 </style>
 </head>
 <body>
@@ -185,6 +188,10 @@
         </div>
       </div>
       <div class="form-note">Ces informations servent uniquement à votre séjour (accueil, contact sur place) et à l'obligation légale de déclaration des meublés de tourisme. Vous recevrez un email de confirmation de votre pré-réservation.</div>
+      <label class="cgv-check">
+        <input type="checkbox" id="f-cgv">
+        <span>J'ai lu et j'accepte les <a href="https://leslogesdevero.fr/cgv" target="_blank" rel="noopener">conditions générales de vente</a>, notamment la politique d'annulation. *</span>
+      </label>
     </div>
 
     <button class="book-btn" id="book-btn" disabled>Sélectionnez vos dates</button>
@@ -334,7 +341,8 @@ function isGuestFormValid(){
   const email = document.getElementById('f-email').value.trim();
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const telOk = telephone.replace(/[^0-9+]/g,'').length >= 8;
-  return prenom && nom && adresse && codePostal && ville && pays && telOk && emailOk;
+  const cgvOk = document.getElementById('f-cgv').checked;
+  return prenom && nom && adresse && codePostal && ville && pays && telOk && emailOk && cgvOk;
 }
 
 function getGuestInfo(){
