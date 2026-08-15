@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 // -------- À adapter à votre configuration --------
 const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
 const TARIFS_PATH = '/tarifs.json'; // servi depuis public/tarifs.json, même déploiement
+const BLOCKED_DATES_PATH = '/dates-bloquees.json'; // servi depuis public/dates-bloquees.json
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
@@ -57,7 +58,7 @@ function parseICS(text) {
 function fmt(d) {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
-async function getBookedSet(property) {
+async function getBookedSet(property, env, request) {
   const res = await fetch(ICS_URLS[property]);
   if (!res.ok) throw new Error('Impossible de lire le calendrier de disponibilité.');
   const events = parseICS(await res.text());
@@ -66,6 +67,19 @@ async function getBookedSet(property) {
     const d = new Date(ev.start);
     while (d < ev.end) { set.add(fmt(d)); d.setUTCDate(d.getUTCDate() + 1); }
   }
+
+  try {
+    const blockedRes = await env.ASSETS.fetch(new Request(new URL(BLOCKED_DATES_PATH, request.url)));
+    if (blockedRes.ok) {
+      const blocked = await blockedRes.json();
+      for (const r of (blocked[property] || [])) {
+        const d = new Date(r.debut + 'T00:00:00Z');
+        const end = new Date(r.fin + 'T00:00:00Z');
+        while (d <= end) { set.add(fmt(d)); d.setUTCDate(d.getUTCDate() + 1); }
+      }
+    }
+  } catch (e) { console.error('Lecture dates-bloquees.json échouée:', e.message); }
+
   return set;
 }
 async function sendEmail(env, to, subject, html) {
@@ -127,7 +141,7 @@ function getLastMinutePercent(tarif, checkin) {
   return (hoursUntilArrival >= 0 && hoursUntilArrival < rdm.seuilHeures) ? rdm.pourcentage : 0;
 }
 
-async function handleAvailability(request, origin) {
+async function handleAvailability(request, env, origin) {
   const headers = { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   const url = new URL(request.url);
   const requested = url.searchParams.get('property') || 'all';
@@ -138,7 +152,7 @@ async function handleAvailability(request, origin) {
   }
   try {
     const result = {};
-    await Promise.all(properties.map(async p => { result[p] = Array.from(await getBookedSet(p)); }));
+    await Promise.all(properties.map(async p => { result[p] = Array.from(await getBookedSet(p, env, request)); }));
     return new Response(JSON.stringify(result), { status: 200, headers });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
@@ -185,6 +199,11 @@ async function handleCheckout(request, env, origin) {
     const tarif = tarifs[property];
     if (!tarif) throw new Error('Tarif introuvable pour ce logement.');
 
+    const maxDateStr = tarifs.reservationsOuvertesJusquau;
+    if (maxDateStr && checkout > maxDateStr) {
+      return new Response(JSON.stringify({ error: `Les réservations ne sont ouvertes que jusqu'au ${maxDateStr}. Merci de choisir des dates antérieures.` }), { status: 400, headers });
+    }
+
     if (nights < (tarif.minNights || 1)) {
       return new Response(JSON.stringify({ error: `Séjour minimum de ${tarif.minNights} nuits pour ce logement.` }), { status: 400, headers });
     }
@@ -192,7 +211,7 @@ async function handleCheckout(request, env, origin) {
       return new Response(JSON.stringify({ error: `Ce logement accueille au maximum ${tarif.maxGuests} personnes.` }), { status: 400, headers });
     }
 
-    const booked = await getBookedSet(property);
+    const booked = await getBookedSet(property, env, request);
     const d = new Date(start);
     while (d < end) {
       if (booked.has(fmt(d))) {
@@ -387,7 +406,7 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
     if (url.pathname === '/get-availability' && request.method === 'GET') {
-      return handleAvailability(request, origin);
+      return handleAvailability(request, env, origin);
     }
     if (url.pathname === '/create-checkout' && request.method === 'POST') {
       return handleCheckout(request, env, origin);
