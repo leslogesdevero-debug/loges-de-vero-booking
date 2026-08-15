@@ -120,6 +120,14 @@
       <button id="children-plus" type="button">+</button>
     </div>
   </div>
+  <div class="guests-row">
+    <label>Bébés (moins de 3 ans)</label>
+    <div class="stepper">
+      <button id="babies-minus" type="button">−</button>
+      <span id="babies-count">0</span>
+      <button id="babies-plus" type="button">+</button>
+    </div>
+  </div>
 
   <div class="card">
     <div class="calendar-nav">
@@ -232,6 +240,7 @@ let blockedRanges = null;
 let selection = { checkin: null, checkout: null };
 let adults = 2;
 let children = 0;
+let babies = 0;
 
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -479,7 +488,7 @@ function updateSummary(){
   const total = Math.round((accommodation + cleaning + taxeSejour) * 100) / 100;
 
   document.getElementById('summary-dates').textContent =
-    `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''} — ${adults} adulte${adults>1?'s':''}${children>0 ? ', ' + children + ' enfant' + (children>1?'s':'') : ''}`;
+    `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''} — ${adults} adulte${adults>1?'s':''}${children>0 ? ', ' + children + ' enfant' + (children>1?'s':'') : ''}${babies>0 ? ', ' + babies + ' bébé' + (babies>1?'s':'') : ''}`;
   document.getElementById('row-nightly').innerHTML = `<span>Hébergement (${nights} nuit${nights>1?'s':''})</span><span>${subtotal.toFixed(2)} €</span>`;
   document.getElementById('row-discount').innerHTML = discountAmount
     ? `<span>Remise séjour longue durée (−${discountPct}%)</span><span>−${discountAmount.toFixed(2)} €</span>` : '';
@@ -514,6 +523,12 @@ document.getElementById('children-plus').addEventListener('click', () => {
   const max = (tarifs && tarifs[currentProp] && tarifs[currentProp].maxGuests) || 99;
   if(adults + children < max){ children++; document.getElementById('children-count').textContent = children; updateSummary(); }
 });
+document.getElementById('babies-minus').addEventListener('click', () => {
+  if(babies > 0){ babies--; document.getElementById('babies-count').textContent = babies; updateSummary(); }
+});
+document.getElementById('babies-plus').addEventListener('click', () => {
+  if(babies < 5){ babies++; document.getElementById('babies-count').textContent = babies; updateSummary(); }
+});
 
 document.getElementById('book-btn').addEventListener('click', async () => {
   const btn = document.getElementById('book-btn');
@@ -523,7 +538,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     const res = await fetch(FUNCTION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, children, guest: getGuestInfo() })
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, children, babies, guest: getGuestInfo() })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
