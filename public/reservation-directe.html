@@ -34,6 +34,7 @@
   .card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px;}
   .calendar-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .nav-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; font-size:15px; color:var(--river); cursor:pointer;}
+  .nav-btn:disabled{opacity:.35; cursor:not-allowed;}
   .nav-btn:hover{background:var(--river-soft);}
   .month-label{font-weight:600; font-size:14px; text-transform:capitalize;}
   .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px;}
@@ -213,6 +214,7 @@
 const FUNCTION_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/create-checkout';
 // Fichier de tarifs, hébergé sur le même projet Cloudflare Pages
 const TARIFS_URL = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/tarifs.json';
+const BLOCKED_DATES_URL = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/dates-bloquees.json';
 // =========================================================================
 
 const AVAILABILITY_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/get-availability';
@@ -226,6 +228,7 @@ let currentProp = 'duplex';
 let view = new Date(today.getFullYear(), today.getMonth(), 1);
 let booked = {}; // { duplex: Set, rdc: Set }
 let tarifs = null;
+let blockedRanges = null;
 let selection = { checkin: null, checkout: null };
 let adults = 2;
 let children = 0;
@@ -241,6 +244,25 @@ async function loadAvailability(prop){
   }catch(e){
     booked[prop] = booked[prop] || new Set();
     setStatus('Disponibilités indisponibles pour le moment, réessayez plus tard.', true);
+  }
+  mergeBlockedDates(prop);
+}
+
+function mergeBlockedDates(prop){
+  const ranges = (blockedRanges && blockedRanges[prop]) || [];
+  for(const r of ranges){
+    const d = new Date(r.debut);
+    const end = new Date(r.fin);
+    while(d <= end){ booked[prop].add(fmt(d)); d.setDate(d.getDate()+1); }
+  }
+}
+
+async function loadBlockedDates(){
+  try{
+    const res = await fetch(BLOCKED_DATES_URL, { cache: 'no-store' });
+    blockedRanges = await res.json();
+  }catch(e){
+    blockedRanges = {};
   }
 }
 
@@ -265,6 +287,10 @@ function hasBookedBetween(a,b){ // strictement entre a (inclus) et b (exclu)
   return false;
 }
 
+function getMaxDateStr(){
+  return (tarifs && tarifs.reservationsOuvertesJusquau) || '2099-12-31';
+}
+
 function renderCalendar(){
   document.getElementById('month-label').textContent = FR_MONTHS[view.getMonth()] + ' ' + view.getFullYear();
   const grid = document.getElementById('day-grid');
@@ -273,6 +299,7 @@ function renderCalendar(){
   const firstDay = new Date(year, month, 1);
   const offset = (firstDay.getDay()+6)%7;
   const daysInMonth = new Date(year, month+1, 0).getDate();
+  const maxDateStr = getMaxDateStr();
 
   for(let i=0;i<offset;i++){ const c=document.createElement('div'); c.className='day-cell empty'; grid.appendChild(c); }
 
@@ -281,7 +308,7 @@ function renderCalendar(){
     const dStr = fmt(d);
     const cell = document.createElement('div');
     cell.textContent = day;
-    const isPast = d < today;
+    const isPast = d < today || dStr > maxDateStr;
     const isBooked = booked[currentProp] && booked[currentProp].has(dStr);
     let cls = 'day-cell';
     if(isPast) cls += ' past';
@@ -298,6 +325,9 @@ function renderCalendar(){
     cell.className = cls;
     grid.appendChild(cell);
   }
+
+  const nextMonthFirstDay = fmt(new Date(year, month+1, 1));
+  document.getElementById('next-btn').disabled = nextMonthFirstDay > maxDateStr;
 }
 
 function onDayClick(d, dStr, isBookedDay){
@@ -526,7 +556,8 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 (async function init(){
-  await Promise.all([loadAvailability('duplex'), loadTarifs()]);
+  await Promise.all([loadBlockedDates(), loadTarifs()]);
+  await loadAvailability('duplex');
   setStatus('');
   renderCalendar();
   updateSummary();
