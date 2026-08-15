@@ -164,7 +164,7 @@ async function handleCheckout(request, env, origin) {
   const stripe = Stripe(env.STRIPE_SECRET_KEY);
 
   try {
-    const { property, checkin, checkout, adults, children, guest } = await request.json();
+    const { property, checkin, checkout, adults, children, babies, guest } = await request.json();
 
     if (!PROPERTY_NAMES[property]) {
       return new Response(JSON.stringify({ error: 'Logement inconnu.' }), { status: 400, headers });
@@ -182,6 +182,7 @@ async function handleCheckout(request, env, origin) {
     const nights = Math.round((end - start) / 86400000);
     const adultsCount = parseInt(adults, 10);
     const childrenCount = parseInt(children, 10) || 0;
+    const babiesCount = parseInt(babies, 10) || 0;
 
     if (!checkin || !checkout || !(nights > 0)) {
       return new Response(JSON.stringify({ error: 'Dates invalides.' }), { status: 400, headers });
@@ -191,6 +192,9 @@ async function handleCheckout(request, env, origin) {
     }
     if (!Number.isInteger(childrenCount) || childrenCount < 0) {
       return new Response(JSON.stringify({ error: "Nombre d'enfants invalide." }), { status: 400, headers });
+    }
+    if (!Number.isInteger(babiesCount) || babiesCount < 0) {
+      return new Response(JSON.stringify({ error: "Nombre de bébés invalide." }), { status: 400, headers });
     }
 
     const tarifsRes = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
@@ -262,7 +266,7 @@ async function handleCheckout(request, env, origin) {
     }
 
     const totalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
-    const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}`;
+    const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}${babiesCount > 0 ? ', ' + babiesCount + ' bébé' + (babiesCount > 1 ? 's' : '') + ' (moins de 3 ans)' : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
     // L'email de confirmation au client est obligatoire : s'il échoue, on
@@ -289,7 +293,7 @@ async function handleCheckout(request, env, origin) {
       success_url: `${origin}/reservation-confirmee.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/reservation-annulee.html`,
       metadata: {
-        property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount),
+        property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount), babies: String(babiesCount),
         prenom: g.prenom, nom: g.nom, adresse: g.adresse, codePostal: g.codePostal, ville: g.ville, pays: g.pays, telephone: g.telephone, email: g.email
       }
     });
@@ -299,6 +303,7 @@ async function handleCheckout(request, env, origin) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
+         ${babiesCount > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${babiesCount} bébé${babiesCount > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>${g.codePostal} ${g.ville}<br>${g.pays}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
          <p>Montant total : ${totalTTC} €</p>`);
     } catch (e) { console.error('Échec email propriétaire:', e.message); }
@@ -382,6 +387,7 @@ async function handleStripeWebhook(request, env) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
         `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>
+         ${Number(m.babies) > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${m.babies} bébé${Number(m.babies) > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          ${superhoteOk
            ? `<p>✅ Synchronisée automatiquement avec Superhote.</p>`
            : `<p><strong>⚠️ La synchronisation automatique avec Superhote a échoué (${superhoteErrorMsg}). Merci de bloquer ces dates manuellement dans Superhote pour éviter une double réservation.</strong></p>`}`);
