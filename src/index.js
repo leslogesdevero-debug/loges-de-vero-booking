@@ -290,7 +290,7 @@ async function handleCheckout(request, env, origin) {
          <p>Vous recevrez un second email de confirmation définitive dès que le paiement sera validé.</p>
          ${depositMode
            ? `<p>Montant à régler maintenant (acompte de 30% sur l'hébergement, ménage et taxe de séjour inclus) : <strong>${totalTTC} €</strong>.</p>
-              <p>Solde restant de <strong>${remainingBalanceTTC} €</strong> à régler 30 jours avant votre arrivée — nous vous recontacterons.</p>`
+              <p>Solde restant de <strong>${remainingBalanceTTC} €</strong> à régler avant votre arrivée — nous vous recontacterons.</p>`
            : `<p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>`}
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) {
