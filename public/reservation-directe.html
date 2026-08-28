@@ -148,7 +148,9 @@
         <div class="summary-row" id="row-lastminute"></div>
         <div class="summary-row" id="row-cleaning"></div>
         <div class="summary-row" id="row-taxe"></div>
+        <div class="summary-row" id="row-deposit"></div>
         <div class="summary-row total" id="row-total"></div>
+        <div class="form-note" id="row-balance-note"></div>
       </div>
     </div>
 
@@ -426,6 +428,12 @@ function getDiscountPercent(t, nights){
   return pct;
 }
 
+function isDepositEligible(checkinStr){
+  const now = new Date();
+  const threshold = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+  return new Date(checkinStr + 'T00:00:00') > threshold;
+}
+
 function getLastMinutePercent(t, checkinStr){
   const rdm = t.remiseDerniereMinute;
   if(!rdm) return 0;
@@ -485,7 +493,11 @@ function updateSummary(){
   const cleaningDetail = t ? (t.cleaningFeeDetail || '') : '';
   const taxeParUnite = t ? (t.taxeSejourParAdulteParNuit || 0) : 0;
   const taxeSejour = Math.round(taxeParUnite * adults * nights * 100) / 100;
-  const total = Math.round((accommodation + cleaning + taxeSejour) * 100) / 100;
+
+  const depositMode = isDepositEligible(selection.checkin);
+  const amountDueNow = depositMode ? Math.round(accommodation * 0.30 * 100) / 100 : accommodation;
+  const remainingBalance = depositMode ? Math.round((accommodation - amountDueNow) * 100) / 100 : 0;
+  const total = Math.round((amountDueNow + cleaning + taxeSejour) * 100) / 100;
 
   document.getElementById('summary-dates').textContent =
     `Du ${formatFR(selection.checkin)} au ${formatFR(selection.checkout)} — ${nights} nuit${nights>1?'s':''} — ${adults} adulte${adults>1?'s':''}${children>0 ? ', ' + children + ' enfant' + (children>1?'s':'') : ''}${babies>0 ? ', ' + babies + ' bébé' + (babies>1?'s':'') : ''}`;
@@ -494,14 +506,19 @@ function updateSummary(){
     ? `<span>Remise séjour longue durée (−${discountPct}%)</span><span>−${discountAmount.toFixed(2)} €</span>` : '';
   document.getElementById('row-lastminute').innerHTML = lastMinuteAmount
     ? `<span>Remise dernière minute (−${lastMinutePct}%)</span><span>−${lastMinuteAmount.toFixed(2)} €</span>` : '';
+  document.getElementById('row-deposit').innerHTML = depositMode
+    ? `<span>Acompte à régler maintenant (30% de l'hébergement)</span><span>${amountDueNow.toFixed(2)} €</span>` : '';
   document.getElementById('row-cleaning').innerHTML = cleaning
     ? `<span>Ménage${cleaningDetail ? ' <span style="font-weight:400;font-size:11px;">(' + cleaningDetail + ')</span>' : ''}</span><span>${cleaning} €</span>` : '';
   document.getElementById('row-taxe').innerHTML = taxeSejour
     ? `<span>Taxe de séjour (${adults} adulte${adults>1?'s':''} × ${nights} nuit${nights>1?'s':''})</span><span>${taxeSejour.toFixed(2)} €</span>` : '';
-  document.getElementById('row-total').innerHTML = `<span>Total</span><span>${total.toFixed(2)} €</span>`;
+  document.getElementById('row-total').innerHTML = `<span>${depositMode ? 'Total à payer maintenant' : 'Total'}</span><span>${total.toFixed(2)} €</span>`;
+  document.getElementById('row-balance-note').textContent = depositMode
+    ? `Solde restant de ${remainingBalance.toFixed(2)} € à régler avant votre arrivée — nous vous recontacterons.` : '';
+
 
   btn.disabled = !isGuestFormValid();
-  btn.textContent = isGuestFormValid() ? `Réserver et payer ${total.toFixed(2)} €` : 'Complétez vos coordonnées';
+  btn.textContent = isGuestFormValid() ? `Réserver et payer ${depositMode ? "l'acompte de " : ''}${total.toFixed(2)} €` : 'Complétez vos coordonnées';
 }
 
 function formatFR(dStr){
