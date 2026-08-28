@@ -236,11 +236,19 @@ async function handleCheckout(request, env, origin) {
     const taxeUnitCents = Math.round(taxeParUnite * 100);
     const taxeQuantity = adultsCount * nights;
 
+    // Acompte de 30% sur l'hébergement seul si l'arrivée est à plus de 30 jours
+    const depositThreshold = new Date();
+    depositThreshold.setUTCDate(depositThreshold.getUTCDate() + 30);
+    const depositThresholdStr = fmt(depositThreshold);
+    const depositMode = checkin > depositThresholdStr;
+    const chargeAccommodationCents = depositMode ? Math.round(accommodationCents * 0.30) : accommodationCents;
+    const remainingBalanceCents = accommodationCents - chargeAccommodationCents;
+
     const lineItems = [{
       price_data: {
         currency: 'eur',
-        unit_amount: accommodationCents,
-        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${totalDiscountPct ? ` — remise -${totalDiscountPct}% incluse` : ''}` }
+        unit_amount: chargeAccommodationCents,
+        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${depositMode ? ' — Acompte 30%' : ''}${totalDiscountPct ? ` — remise -${totalDiscountPct}% incluse` : ''}` }
       },
       quantity: 1
     }];
@@ -265,7 +273,9 @@ async function handleCheckout(request, env, origin) {
       });
     }
 
-    const totalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const fullTotalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const totalTTC = ((chargeAccommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const remainingBalanceTTC = (remainingBalanceCents / 100).toFixed(2);
     const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}${babiesCount > 0 ? ', ' + babiesCount + ' bébé' + (babiesCount > 1 ? 's' : '') + ' (moins de 3 ans)' : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
@@ -278,7 +288,10 @@ async function handleCheckout(request, env, origin) {
          <p>Nous avons bien reçu votre demande de réservation pour <strong>${PROPERTY_NAMES[property]}</strong>, ${datesTxt}, pour ${occupantsTxt}.</p>
          <p><strong>Cette pré-réservation est en attente de confirmation de votre paiement.</strong></p>
          <p>Vous recevrez un second email de confirmation définitive dès que le paiement sera validé.</p>
-         <p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>
+         ${depositMode
+           ? `<p>Montant à régler maintenant (acompte de 30% sur l'hébergement, ménage et taxe de séjour inclus) : <strong>${totalTTC} €</strong>.</p>
+              <p>Solde restant de <strong>${remainingBalanceTTC} €</strong> à régler avant votre arrivée — nous vous recontacterons.</p>`
+           : `<p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>`}
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) {
       console.error('Échec email client — réservation bloquée:', e.message);
@@ -294,7 +307,8 @@ async function handleCheckout(request, env, origin) {
       cancel_url: `${origin}/reservation-annulee.html`,
       metadata: {
         property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount), babies: String(babiesCount),
-        prenom: g.prenom, nom: g.nom, adresse: g.adresse, codePostal: g.codePostal, ville: g.ville, pays: g.pays, telephone: g.telephone, email: g.email
+        prenom: g.prenom, nom: g.nom, adresse: g.adresse, codePostal: g.codePostal, ville: g.ville, pays: g.pays, telephone: g.telephone, email: g.email,
+        depositMode: String(depositMode), fullTotal: fullTotalTTC, remainingBalance: remainingBalanceTTC
       }
     });
 
@@ -305,7 +319,9 @@ async function handleCheckout(request, env, origin) {
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
          ${babiesCount > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${babiesCount} bébé${babiesCount > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>${g.codePostal} ${g.ville}<br>${g.pays}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
-         <p>Montant total : ${totalTTC} €</p>`);
+         ${depositMode
+           ? `<p>Acompte réglé maintenant : ${totalTTC} € — <strong>solde restant de ${remainingBalanceTTC} € à récupérer auprès du client avant son arrivée</strong> (valeur totale du séjour : ${fullTotalTTC} €).</p>`
+           : `<p>Montant total : ${totalTTC} €</p>`}`);
     } catch (e) { console.error('Échec email propriétaire:', e.message); }
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers });
@@ -366,10 +382,12 @@ async function handleStripeWebhook(request, env) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const m = session.metadata || {};
+    const depositMode = m.depositMode === 'true';
     try {
       await sendEmail(env, m.email, 'Réservation confirmée — Les Loges de Véro',
         `<p>Bonjour ${m.prenom},</p>
          <p>Votre paiement a bien été validé. Votre réservation pour <strong>${PROPERTY_NAMES[m.property] || m.property}</strong>, du ${m.checkin} au ${m.checkout} (${m.nights} nuit${Number(m.nights) > 1 ? 's' : ''}), est maintenant <strong>confirmée</strong>.</p>
+         ${depositMode ? `<p>Pour rappel, un solde de <strong>${m.remainingBalance} €</strong> reste à régler avant votre arrivée — nous vous recontacterons.</p>` : ''}
          <p>Nous avons hâte de vous accueillir aux Loges de Véro !</p>
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) { console.error('Échec email confirmation définitive:', e.message); }
@@ -377,7 +395,7 @@ async function handleStripeWebhook(request, env) {
     let superhoteOk = true;
     let superhoteErrorMsg = '';
     try {
-      await pushToSuperhote(env, m, (session.amount_total / 100).toFixed(2));
+      await pushToSuperhote(env, m, m.fullTotal || (session.amount_total / 100).toFixed(2));
     } catch (e) {
       superhoteOk = false;
       superhoteErrorMsg = e.message;
@@ -387,6 +405,7 @@ async function handleStripeWebhook(request, env) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
         `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>
+         ${depositMode ? `<p><strong>Rappel : solde de ${m.remainingBalance} € à récupérer auprès du client avant son arrivée.</strong></p>` : ''}
          ${Number(m.babies) > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${m.babies} bébé${Number(m.babies) > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          ${superhoteOk
            ? `<p>✅ Synchronisée automatiquement avec Superhote.</p>`
@@ -401,6 +420,37 @@ async function handleStripeWebhook(request, env) {
   }
 
   return new Response('ok', { status: 200 });
+}
+
+async function sendBalanceReminders(env) {
+  const stripe = Stripe(env.STRIPE_SECRET_KEY);
+  const sessions = await stripe.checkout.sessions.list({ limit: 100, status: 'complete' });
+
+  const today = new Date();
+  const windowStart = new Date(today); windowStart.setUTCDate(windowStart.getUTCDate() + 28);
+  const windowEnd = new Date(today); windowEnd.setUTCDate(windowEnd.getUTCDate() + 32);
+  const startStr = fmt(windowStart);
+  const endStr = fmt(windowEnd);
+
+  for (const session of sessions.data) {
+    const m = session.metadata || {};
+    if (m.depositMode !== 'true') continue;
+    if (!m.checkin || m.checkin < startStr || m.checkin > endStr) continue;
+
+    const key = 'reminded:' + session.id;
+    try {
+      const already = await env.REMINDERS_KV.get(key);
+      if (already) continue;
+    } catch (e) { console.error('Lecture KV échouée:', e.message); continue; }
+
+    try {
+      await sendEmail(env, OWNER_EMAIL, `Rappel solde à récupérer — ${PROPERTY_NAMES[m.property] || m.property}`,
+        `<p>L'arrivée de <strong>${m.prenom} ${m.nom}</strong> approche : ${m.checkin} (dans environ 30 jours).</p>
+         <p>Solde restant à récupérer : <strong>${m.remainingBalance} €</strong>.</p>
+         <p>Coordonnées : ${m.telephone} — ${m.email}</p>`);
+      await env.REMINDERS_KV.put(key, 'true', { expirationTtl: 60 * 60 * 24 * 90 });
+    } catch (e) { console.error('Échec envoi rappel solde:', e.message); }
+  }
 }
 
 export default {
@@ -422,5 +472,9 @@ export default {
     }
     // Tout le reste : fichiers statiques servis depuis public/
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sendBalanceReminders(env));
   }
 };
