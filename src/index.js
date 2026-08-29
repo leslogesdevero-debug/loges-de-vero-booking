@@ -290,7 +290,7 @@ async function handleCheckout(request, env, origin) {
          <p>Vous recevrez un second email de confirmation définitive dès que le paiement sera validé.</p>
          ${depositMode
            ? `<p>Montant à régler maintenant (acompte de 30% sur l'hébergement, ménage et taxe de séjour inclus) : <strong>${totalTTC} €</strong>.</p>
-              <p>Solde restant de <strong>${remainingBalanceTTC} €</strong> à régler avant votre arrivée — nous vous recontacterons.</p>`
+              <p>Solde restant de <strong>${remainingBalanceTTC} €</strong> à régler au plus tard 30 jours avant votre arrivée — nous vous recontacterons.</p>`
            : `<p>Montant total : <strong>${totalTTC} €</strong> (taxe de séjour incluse).</p>`}
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) {
@@ -320,7 +320,7 @@ async function handleCheckout(request, env, origin) {
          ${babiesCount > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${babiesCount} bébé${babiesCount > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>${g.codePostal} ${g.ville}<br>${g.pays}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
          ${depositMode
-           ? `<p>Acompte réglé maintenant : ${totalTTC} € — <strong>solde restant de ${remainingBalanceTTC} € à récupérer auprès du client avant son arrivée</strong> (valeur totale du séjour : ${fullTotalTTC} €).</p>`
+           ? `<p>Acompte réglé maintenant : ${totalTTC} € — <strong>solde restant de ${remainingBalanceTTC} € à récupérer auprès du client au plus tard 30 jours avant son arrivée</strong> (valeur totale du séjour : ${fullTotalTTC} €).</p>`
            : `<p>Montant total : ${totalTTC} €</p>`}`);
     } catch (e) { console.error('Échec email propriétaire:', e.message); }
 
@@ -387,7 +387,7 @@ async function handleStripeWebhook(request, env) {
       await sendEmail(env, m.email, 'Réservation confirmée — Les Loges de Véro',
         `<p>Bonjour ${m.prenom},</p>
          <p>Votre paiement a bien été validé. Votre réservation pour <strong>${PROPERTY_NAMES[m.property] || m.property}</strong>, du ${m.checkin} au ${m.checkout} (${m.nights} nuit${Number(m.nights) > 1 ? 's' : ''}), est maintenant <strong>confirmée</strong>.</p>
-         ${depositMode ? `<p>Pour rappel, un solde de <strong>${m.remainingBalance} €</strong> reste à régler avant votre arrivée — nous vous recontacterons.</p>` : ''}
+         ${depositMode ? `<p>Pour rappel, un solde de <strong>${m.remainingBalance} €</strong> reste à régler au plus tard 30 jours avant votre arrivée — nous vous recontacterons.</p>` : ''}
          <p>Nous avons hâte de vous accueillir aux Loges de Véro !</p>
          <p>À bientôt,<br>Les Loges de Véro</p>`);
     } catch (e) { console.error('Échec email confirmation définitive:', e.message); }
@@ -405,7 +405,7 @@ async function handleStripeWebhook(request, env) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
         `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>
-         ${depositMode ? `<p><strong>Rappel : solde de ${m.remainingBalance} € à récupérer auprès du client avant son arrivée.</strong></p>` : ''}
+         ${depositMode ? `<p><strong>Rappel : solde de ${m.remainingBalance} € à récupérer auprès du client au plus tard 30 jours avant son arrivée.</strong></p>` : ''}
          ${Number(m.babies) > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${m.babies} bébé${Number(m.babies) > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          ${superhoteOk
            ? `<p>✅ Synchronisée automatiquement avec Superhote.</p>`
