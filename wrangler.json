@@ -13,8 +13,5 @@
   "triggers": {
     "crons": ["0 7 * * *"]
   },
-  "kv_namespaces": [
-    { "binding": "REMINDERS_KV", "id": "55bc3de13eed402faa1ec361df65929a" },
-    { "binding": "CONFIG_KV", "id": "851f3ededc6a4b8cbb6253ee753c8ae8" }
-  ]
+  "kv_namespaces": [{"binding": "REMINDERS_KV", "id": "55bc3de13eed402faa1ec361df65929a"}, {"binding": "CONFIG_KV", "id": "851f3ededc6a4b8cbb6253ee753c8ae8"}]
 }
