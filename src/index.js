@@ -58,6 +58,18 @@ function parseICS(text) {
 function fmt(d) {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
+async function getTarifs(env, request) {
+  try {
+    const fromKV = await env.CONFIG_KV.get('tarifs', 'json');
+    if (fromKV) return fromKV;
+  } catch (e) { console.error('Lecture CONFIG_KV échouée:', e.message); }
+  // Repli : aucune sauvegarde via la page d'administration pour l'instant,
+  // on lit l'ancien fichier statique.
+  const res = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
+  if (!res.ok) throw new Error('Impossible de charger les tarifs.');
+  return res.json();
+}
+
 async function getBookedSet(property, env, request) {
   const res = await fetch(ICS_URLS[property]);
   if (!res.ok) throw new Error('Impossible de lire le calendrier de disponibilité.');
@@ -197,9 +209,7 @@ async function handleCheckout(request, env, origin) {
       return new Response(JSON.stringify({ error: "Nombre de bébés invalide." }), { status: 400, headers });
     }
 
-    const tarifsRes = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
-    if (!tarifsRes.ok) throw new Error('Impossible de charger les tarifs.');
-    const tarifs = await tarifsRes.json();
+    const tarifs = await getTarifs(env, request);
     const tarif = tarifs[property];
     if (!tarif) throw new Error('Tarif introuvable pour ce logement.');
 
@@ -453,6 +463,41 @@ async function sendBalanceReminders(env) {
   }
 }
 
+function checkAdminPassword(request, env) {
+  const provided = request.headers.get('X-Admin-Password') || '';
+  return env.ADMIN_PASSWORD && provided === env.ADMIN_PASSWORD;
+}
+
+async function handleAdminGetTarifs(request, env) {
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  if (!checkAdminPassword(request, env)) {
+    return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
+  }
+  try {
+    const tarifs = await getTarifs(env, request);
+    return new Response(JSON.stringify(tarifs), { status: 200, headers });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
+  }
+}
+
+async function handleAdminSaveTarifs(request, env) {
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  if (!checkAdminPassword(request, env)) {
+    return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
+  }
+  try {
+    const updated = await request.json();
+    if (!updated.duplex || !updated.rdc) {
+      return new Response(JSON.stringify({ error: 'Format de données invalide.' }), { status: 400, headers });
+    }
+    await env.CONFIG_KV.put('tarifs', JSON.stringify(updated));
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -469,6 +514,19 @@ export default {
     }
     if (url.pathname === '/stripe-webhook' && request.method === 'POST') {
       return handleStripeWebhook(request, env);
+    }
+    if (url.pathname === '/tarifs.json' && request.method === 'GET') {
+      const tarifs = await getTarifs(env, request);
+      return new Response(JSON.stringify(tarifs), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+      });
+    }
+    if (url.pathname === '/admin/api/tarifs' && request.method === 'GET') {
+      return handleAdminGetTarifs(request, env);
+    }
+    if (url.pathname === '/admin/api/tarifs' && request.method === 'POST') {
+      return handleAdminSaveTarifs(request, env);
     }
     // Tout le reste : fichiers statiques servis depuis public/
     return env.ASSETS.fetch(request);
