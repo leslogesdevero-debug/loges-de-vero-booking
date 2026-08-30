@@ -1,0 +1,20 @@
+{
+  "name": "loges-de-vero-booking",
+  "compatibility_date": "2026-08-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.js",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["0 7 * * *"]
+  },
+  "kv_namespaces": [
+    { "binding": "REMINDERS_KV", "id": "55bc3de13eed402faa1ec361df65929a" },
+    { "binding": "CONFIG_KV", "id": "851f3ededc6a4b8cbb6253ee753c8ae8" }
+  ]
+}
