@@ -4,20 +4,19 @@ import Stripe from 'stripe';
 const SITE_URL = 'https://leslogesdevero.fr';
 const TARIFS_PATH = '/tarifs.json';
 const BLOCKED_DATES_PATH = '/dates-bloquees.json';
+
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
-const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 
-const SUPERHOTE_PROPERTY_KEYS = {
-  duplex: 'À_COMPLETER_property_key_duplex',
-  rdc: 'À_COMPLETER_property_key_rdc'
+const PROPERTY_NAMES = { 
+  duplex: 'Le Duplex', 
+  rdc: 'Le Rez-de-chaussée' 
 };
 
 const FROM_EMAIL = 'Les Loges de Véro <contact@leslogesdevero.fr>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
-const TELEGRAM_CHAT_ID = 'A_COMPLETER';
 
 function getStripe(env) {
   return new Stripe(env.STRIPE_SECRET_KEY, {
@@ -66,21 +65,6 @@ function parseICSEvents(icsText) {
   return events;
 }
 
-function isDateRangeAvailable(startDate, endDate, reservedRanges) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  for (const range of reservedRanges) {
-    const rStart = new Date(range.start);
-    const rEnd = new Date(range.end);
-
-    if (start < rEnd && end > rStart) {
-      return false;
-    }
-  }
-  return true;
-}
-
 async function fetchTarifs(env, requestOrigin) {
   const res = await env.ASSETS.fetch(new URL(TARIFS_PATH, requestOrigin));
   if (!res.ok) throw new Error('Impossible de charger tarifs.json');
@@ -89,10 +73,14 @@ async function fetchTarifs(env, requestOrigin) {
 
 async function fetchBlockedDates(env, requestOrigin) {
   try {
+    if (env.CONFIG_KV) {
+      const kvBlocked = await env.CONFIG_KV.get('blocked_dates');
+      if (kvBlocked) return JSON.parse(kvBlocked);
+    }
     const res = await env.ASSETS.fetch(new URL(BLOCKED_DATES_PATH, requestOrigin));
     if (res.ok) return await res.json();
   } catch (e) {
-    // Ignorer si le fichier n'existe pas
+    console.error('Erreur lecture dates bloquées:', e);
   }
   return [];
 }
@@ -106,15 +94,6 @@ async function sendEmail(env, { to, subject, html }) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ from: FROM_EMAIL, to, subject, html })
-  });
-}
-
-async function sendTelegram(env, message) {
-  if (!env.TELEGRAM_BOT_TOKEN || TELEGRAM_CHAT_ID === 'A_COMPLETER') return;
-  await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: 'HTML' })
   });
 }
 
@@ -133,9 +112,17 @@ export default {
         const icsUrl = ICS_URLS[property];
         if (!icsUrl) return new Response('Logement inconnu', { status: 400 });
 
-        const icsRes = await fetch(icsUrl);
-        const icsText = await icsRes.text();
-        const events = parseICSEvents(icsText);
+        let events = [];
+        try {
+          const icsRes = await fetch(icsUrl);
+          if (icsRes.ok) {
+            const icsText = await icsRes.text();
+            events = parseICSEvents(icsText);
+          }
+        } catch (err) {
+          console.error('Erreur lecture iCal Superhote:', err);
+        }
+
         const manualBlocked = await fetchBlockedDates(env, request.url);
 
         const allBlocked = [
@@ -237,24 +224,37 @@ export default {
           const session = event.data.object;
           const meta = session.metadata;
 
-          const summary = `🎉 <b>Nouvelle réservation !</b>\n` +
-            `Logement: ${PROPERTY_NAMES[meta.property]}\n` +
-            `Client: ${meta.name} (${meta.email})\n` +
-            `Dates: du ${meta.startDate} au ${meta.endDate}\n` +
-            `Montant payé: ${session.amount_total / 100} €`;
+          const emailBody = `
+            <h2>Nouvelle réservation directe enregistrée !</h2>
+            <p><b>Logement :</b> ${PROPERTY_NAMES[meta.property]}</p>
+            <p><b>Client :</b> ${meta.name}</p>
+            <p><b>Email :</b> ${meta.email}</p>
+            <p><b>Téléphone :</b> ${meta.phone}</p>
+            <p><b>Dates :</b> Du ${meta.startDate} au ${meta.endDate}</p>
+            <p><b>Voyageurs :</b> ${meta.guests}</p>
+            <p><b>Montant encaissement Stripe :</b> ${session.amount_total / 100} €</p>
+            <hr>
+            <p><i>N'oubliez pas d'ajouter cette réservation manuellement dans votre application Superhote pour bloquer ces dates sur les autres plateformes.</i></p>
+          `;
 
-          await sendTelegram(env, summary);
+          // Notification pour vous
+          await sendEmail(env, {
+            to: OWNER_EMAIL,
+            subject: `[Réservation Directe] ${PROPERTY_NAMES[meta.property]} - ${meta.name}`,
+            html: emailBody
+          });
+
+          // Confirmation pour le client
           await sendEmail(env, {
             to: meta.email,
             subject: 'Confirmation de votre réservation - Les Loges de Véro',
-            html: `<p>Bonjour ${meta.name},</p><p>Nous avons bien confirmé votre réservation pour le <b>${PROPERTY_NAMES[meta.property]}</b> du ${meta.startDate} au ${meta.endDate}.</p>`
+            html: `<p>Bonjour ${meta.name},</p><p>Nous avons bien confirmé votre réservation pour le <b>${PROPERTY_NAMES[meta.property]}</b> du ${meta.startDate} au ${meta.endDate}.</p><p>A très bientôt !</p>`
           });
         }
 
         return new Response(JSON.stringify({ received: true }), { headers: { 'Content-Type': 'application/json' } });
       }
 
-      // Par défaut, sert les fichiers statiques du dossier public
       return await env.ASSETS.fetch(request);
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
@@ -262,9 +262,5 @@ export default {
         headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' }
       });
     }
-  },
-
-  async scheduled(event, env, ctx) {
-    // Tâche planifiée quotidienne
   }
 };
