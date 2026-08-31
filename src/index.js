@@ -1,4 +1,3 @@
-// Worker Cloudflare unique : sert le site (public/) ET gère les routes d'API/Admin.
 import Stripe from 'stripe';
 
 // -------- Configuration des constantes --------
