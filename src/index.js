@@ -1,278 +1,32 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Administration des tarifs — Les Loges de Véro</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --limestone: #F6F3EC; --card: #FFFFFF; --ink: #2A2926; --ink-soft: #6b6558;
-    --river: #3E5C6E; --river-soft: #EAF0F2; --forest: #55704B; --forest-soft: #EBF0E7;
-    --brick: #A15A3E; --brick-soft: #F5E7E0; --line: #DED7C6;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--limestone); color: var(--ink); font-family: 'Work Sans', sans-serif; padding: 32px 16px 56px; }
-  .app { max-width: 720px; margin: 0 auto; }
-  .app-header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px double var(--line); }
-  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--river); font-weight: 600; }
-  .app-header h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 24px; margin: 6px 0 0; }
+// Worker Cloudflare unique : sert le site (public/) ET gère deux routes
+// dynamiques, /create-checkout et /get-availability.
+// Remplace l'ancienne approche Cloudflare Pages (functions/*.js séparés).
 
-  .login-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 28px; max-width: 360px; margin: 60px auto; text-align: center; }
-  .login-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; margin: 14px 0; }
-  .login-card button { width: 100%; padding: 11px; border: none; border-radius: 6px; background: var(--river); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
-  .error-msg { color: var(--brick); font-size: 13px; margin-top: 8px; min-height: 16px; }
-
-  .season-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 18px; }
-  .season-card h2 { font-family: 'Fraunces', serif; font-size: 17px; margin: 0 0 14px; }
-  .prices-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-  .price-field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); display: block; margin-bottom: 4px; }
-  .price-field .input-euro { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-  .price-field .input-euro input { border: none; padding: 9px 10px; font-size: 14px; width: 100%; }
-  .price-field .input-euro span { padding: 0 10px; color: var(--ink-soft); background: var(--limestone); align-self: stretch; display: flex; align-items: center; font-size: 13px; }
-
-  .range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .range-row input[type="date"] { padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; flex: 1; }
-  .range-row .remove-btn { background: none; border: 1px solid var(--line); border-radius: 4px; width: 28px; height: 28px; color: var(--brick); cursor: pointer; font-size: 15px; flex-shrink: 0; }
-  .add-range-btn { background: none; border: 1px dashed var(--line); border-radius: 4px; padding: 7px 12px; font-size: 12px; color: var(--river); cursor: pointer; margin-top: 4px; }
-
-  .default-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 18px; }
-  .default-card h2 { font-family: 'Fraunces', serif; font-size: 16px; margin: 0 0 4px; }
-  .default-card p { font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; }
-
-  .save-bar { position: sticky; bottom: 0; background: var(--limestone); padding: 16px 0; margin-top: 8px; }
-  .save-btn { width: 100%; padding: 13px; border: none; border-radius: 6px; background: var(--forest); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; transition: background 0.2s; }
-  .save-btn:disabled { background: #c9c3b4; cursor: not-allowed; }
-  .status-line { text-align: center; font-size: 13px; margin-top: 10px; min-height: 18px; }
-  .status-line.ok { color: var(--forest); font-weight: 600; }
-  .status-line.error { color: var(--brick); font-weight: 600; }
-
-  .hidden { display: none; }
-</style>
-</head>
-<body>
-<div class="app">
-  <div class="app-header">
-    <div class="eyebrow">Les Loges de Véro</div>
-    <h1>Administration des tarifs</h1>
-  </div>
-
-  <div id="login-view" class="login-card">
-    <p>Mot de passe requis</p>
-    <input type="password" id="password-input" placeholder="Mot de passe">
-    <button id="login-btn">Se connecter</button>
-    <div class="error-msg" id="login-error"></div>
-  </div>
-
-  <div id="admin-view" class="hidden">
-    <div class="default-card">
-      <h2>Tarif de base (par défaut)</h2>
-      <p>Utilisé pour toute date qui ne serait couverte par aucune des 3 saisons ci-dessous.</p>
-      <div class="prices-row">
-        <div class="price-field">
-          <label for="default-duplex">Le Duplex</label>
-          <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€/nuit</span></div>
-        </div>
-        <div class="price-field">
-          <label for="default-rdc">Le Rez-de-chaussée</label>
-          <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€/nuit</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="seasons-container"></div>
-
-    <div class="save-bar">
-      <button class="save-btn" id="save-btn">Enregistrer les tarifs</button>
-      <div class="status-line" id="status-line"></div>
-    </div>
-  </div>
-</div>
-
-<script>
-const ADMIN_API = '/admin/api/tarifs';
-const SEASON_NAMES = ['Haute saison', 'Moyenne saison', 'Basse saison'];
-let password = '';
-let fullTarifs = null;
-
-document.getElementById('login-btn').addEventListener('click', login);
-document.getElementById('password-input').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
-
-async function login() {
-  const pwd = document.getElementById('password-input').value.trim();
-  const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-  
-  if(!pwd) {
-    errEl.textContent = 'Veuillez saisir un mot de passe.';
-    return;
-  }
-
-  try {
-    const res = await fetch(ADMIN_API, { headers: { 'X-Admin-Password': pwd } });
-    if(!res.ok) {
-      errEl.textContent = 'Mot de passe incorrect.';
-      return;
-    }
-    fullTarifs = await res.json();
-    password = pwd;
-    sessionStorage.setItem('admin-password', pwd);
-    document.getElementById('login-view').classList.add('hidden');
-    document.getElementById('admin-view').classList.remove('hidden');
-    renderForm();
-  } catch(e) {
-    errEl.textContent = 'Erreur de connexion réseau, réessayez.';
-  }
-}
-
-function renderForm() {
-  document.getElementById('default-duplex').value = fullTarifs.duplex?.nightlyDefault ?? '';
-  document.getElementById('default-rdc').value = fullTarifs.rdc?.nightlyDefault ?? '';
-
-  const container = document.getElementById('seasons-container');
-  container.innerHTML = '';
-
-  for(const seasonName of SEASON_NAMES) {
-    const duplexSeasons = (fullTarifs.duplex?.saisons || []).filter(s => s.nom === seasonName);
-    const rdcSeasons = (fullTarifs.rdc?.saisons || []).filter(s => s.nom === seasonName);
-    const duplexPrice = duplexSeasons[0] ? duplexSeasons[0].nightly : '';
-    const rdcPrice = rdcSeasons[0] ? rdcSeasons[0].nightly : '';
-    
-    const ranges = duplexSeasons.map(s => ({ debut: s.debut, fin: s.fin }));
-
-    const card = document.createElement('div');
-    card.className = 'season-card';
-    card.dataset.season = seasonName;
-    card.innerHTML = `
-      <h2>${seasonName}</h2>
-      <div class="prices-row">
-        <div class="price-field">
-          <label>Le Duplex</label>
-          <div class="input-euro"><input type="number" class="price-duplex" min="0" step="1" value="${duplexPrice}"><span>€/nuit</span></div>
-        </div>
-        <div class="price-field">
-          <label>Le Rez-de-chaussée</label>
-          <div class="input-euro"><input type="number" class="price-rdc" min="0" step="1" value="${rdcPrice}"><span>€/nuit</span></div>
-        </div>
-      </div>
-      <label style="font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Périodes de l'année concernées</label>
-      <div class="ranges-list"></div>
-      <button type="button" class="add-range-btn">+ Ajouter une période</button>
-    `;
-    const rangesList = card.querySelector('.ranges-list');
-    if(ranges.length === 0) ranges.push({ debut: '', fin: '' });
-    for(const r of ranges) addRangeRow(rangesList, r.debut, r.fin);
-    card.querySelector('.add-range-btn').addEventListener('click', () => addRangeRow(rangesList, '', ''));
-    container.appendChild(card);
-  }
-}
-
-function addRangeRow(container, debut, fin) {
-  const row = document.createElement('div');
-  row.className = 'range-row';
-  row.innerHTML = `
-    <input type="date" class="range-debut" value="${debut}">
-    <span style="font-size:12px; color:var(--ink-soft);">au</span>
-    <input type="date" class="range-fin" value="${fin}">
-    <button type="button" class="remove-btn" title="Supprimer la période">×</button>
-  `;
-  row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
-  container.appendChild(row);
-}
-
-document.getElementById('save-btn').addEventListener('click', save);
-
-async function save() {
-  const btn = document.getElementById('save-btn');
-  const statusEl = document.getElementById('status-line');
-  btn.disabled = true;
-  btn.textContent = 'Enregistrement...';
-  statusEl.textContent = '';
-  statusEl.className = 'status-line';
-
-  try {
-    const defaultDuplex = Number(document.getElementById('default-duplex').value);
-    const defaultRdc = Number(document.getElementById('default-rdc').value);
-
-    const duplexSeasons = [];
-    const rdcSeasons = [];
-    let hasDateError = false;
-
-    document.querySelectorAll('.season-card').forEach(card => {
-      const seasonName = card.dataset.season;
-      const valDuplex = card.querySelector('.price-duplex').value;
-      const valRdc = card.querySelector('.price-rdc').value;
-      const priceDuplex = valDuplex !== '' ? Number(valDuplex) : null;
-      const priceRdc = valRdc !== '' ? Number(valRdc) : null;
-
-      card.querySelectorAll('.range-row').forEach(row => {
-        const debut = row.querySelector('.range-debut').value;
-        const fin = row.querySelector('.range-fin').value;
-        
-        // Ignorer si les deux champs sont vides
-        if(!debut && !fin) return; 
-
-        // Erreur si un seul champ de date est rempli
-        if(!debut || !fin) {
-          hasDateError = true;
-          return;
-        }
-
-        // Vérification de la chronologie des dates
-        if(new Date(debut) > new Date(fin)) {
-          hasDateError = true;
-          return;
-        }
-
-        if(priceDuplex !== null) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex });
-        if(priceRdc !== null) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc });
-      });
-    });
-
-    if(hasDateError) {
-      throw new Error('Veuillez vérifier les dates saisies (champs incomplets ou date de début postérieure à la fin).');
-    }
-
-    fullTarifs.duplex.nightlyDefault = defaultDuplex;
-    fullTarifs.duplex.saisons = duplexSeasons;
-    fullTarifs.rdc.nightlyDefault = defaultRdc;
-    fullTarifs.rdc.saisons = rdcSeasons;
-
-    const res = await fetch(ADMIN_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-      body: JSON.stringify(fullTarifs)
-    });
-    
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Erreur lors de la sauvegarde.');
-// Worker Cloudflare unique : sert le site (public/) ET gère les routes d'API/Admin.
 import Stripe from 'stripe';
 
-// -------- Configuration des constantes --------
-const SITE_URL = 'https://leslogesdevero.fr';
-const TARIFS_PATH = '/tarifs.json';
-const BLOCKED_DATES_PATH = '/dates-bloquees.json';
+// -------- À adapter à votre configuration --------
+const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
+const TARIFS_PATH = '/tarifs.json'; // servi depuis public/tarifs.json, même déploiement
+const BLOCKED_DATES_PATH = '/dates-bloquees.json'; // servi depuis public/dates-bloquees.json
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
-
+// -------- Synchronisation Superhote (à compléter avec vos identifiants) --------
 const SUPERHOTE_PROPERTY_KEYS = {
   duplex: 'À_COMPLETER_property_key_duplex',
   rdc: 'À_COMPLETER_property_key_rdc'
 };
-
+// ---------------------------------------------------------------------------
 const FROM_EMAIL = 'Les Loges de Véro <contact@leslogesdevero.fr>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
-const TELEGRAM_CHAT_ID = 'A_COMPLETER';
+const TELEGRAM_CHAT_ID = 'A_COMPLETER'; // votre identifiant de conversation Telegram
 
-function corsHeaders(origin = '*') {
+function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
 }
@@ -304,17 +58,15 @@ function parseICS(text) {
 function fmt(d) {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
-
 async function getTarifs(env, request) {
   try {
     const fromKV = await env.CONFIG_KV.get('tarifs', 'json');
     if (fromKV) return fromKV;
-  } catch (e) { 
-    console.error('Lecture CONFIG_KV échouée:', e.message); 
-  }
-  // Repli : lecture du fichier statique de base si le KV n'est pas encore initialisé
+  } catch (e) { console.error('Lecture CONFIG_KV échouée:', e.message); }
+  // Repli : aucune sauvegarde via la page d'administration pour l'instant,
+  // on lit l'ancien fichier statique.
   const res = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
-  if (!res.ok) throw new Error('Impossible de charger les tarifs par défaut.');
+  if (!res.ok) throw new Error('Impossible de charger les tarifs.');
   return res.json();
 }
 
@@ -342,7 +94,6 @@ async function getBookedSet(property, env, request) {
 
   return set;
 }
-
 async function sendEmail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) throw new Error('Service d\'email non configuré.');
   const res = await fetch('https://api.resend.com/emails', {
@@ -379,7 +130,6 @@ function getNightlyRate(tarif, dateStr) {
   }
   return tarif.nightlyDefault;
 }
-
 function getAccommodationSubtotal(tarif, checkinDate, nights) {
   let subtotal = 0;
   const d = new Date(checkinDate);
@@ -389,7 +139,6 @@ function getAccommodationSubtotal(tarif, checkinDate, nights) {
   }
   return subtotal;
 }
-
 function getDiscountPercent(tarif, nights) {
   let pct = 0;
   for (const r of (tarif.remises || [])) {
@@ -397,7 +146,6 @@ function getDiscountPercent(tarif, nights) {
   }
   return pct;
 }
-
 function getLastMinutePercent(tarif, checkin) {
   const rdm = tarif.remiseDerniereMinute;
   if (!rdm) return 0;
@@ -498,6 +246,7 @@ async function handleCheckout(request, env, origin) {
     const taxeUnitCents = Math.round(taxeParUnite * 100);
     const taxeQuantity = adultsCount * nights;
 
+    // Acompte de 30% sur l'hébergement seul si l'arrivée est à plus de 30 jours
     const depositThreshold = new Date();
     depositThreshold.setUTCDate(depositThreshold.getUTCDate() + 30);
     const depositThresholdStr = fmt(depositThreshold);
@@ -540,6 +289,9 @@ async function handleCheckout(request, env, origin) {
     const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}${babiesCount > 0 ? ', ' + babiesCount + ' bébé' + (babiesCount > 1 ? 's' : '') + ' (moins de 3 ans)' : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
+    // L'email de confirmation au client est obligatoire : s'il échoue, on
+    // n'ouvre pas le paiement plutôt que de laisser une réservation sans
+    // confirmation envoyée.
     try {
       await sendEmail(env, g.email, 'Votre pré-réservation — Les Loges de Véro',
         `<p>Bonjour ${g.prenom},</p>
@@ -570,6 +322,8 @@ async function handleCheckout(request, env, origin) {
       }
     });
 
+    // La notification au propriétaire reste non-bloquante : un souci ici ne
+    // doit pas empêcher un client de payer.
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
@@ -715,7 +469,7 @@ function checkAdminPassword(request, env) {
 }
 
 async function handleAdminGetTarifs(request, env) {
-  const headers = { ...corsHeaders(), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   if (!checkAdminPassword(request, env)) {
     return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
   }
@@ -728,7 +482,7 @@ async function handleAdminGetTarifs(request, env) {
 }
 
 async function handleAdminSaveTarifs(request, env) {
-  const headers = { ...corsHeaders(), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   if (!checkAdminPassword(request, env)) {
     return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
   }
@@ -737,17 +491,7 @@ async function handleAdminSaveTarifs(request, env) {
     if (!updated.duplex || !updated.rdc) {
       return new Response(JSON.stringify({ error: 'Format de données invalide.' }), { status: 400, headers });
     }
-    
-    // Fusion avec les tarifs existants pour conserver les remises, taxes et frais de ménage
-    const currentTarifs = await getTarifs(env, request);
-    const mergedTarifs = {
-      ...currentTarifs,
-      ...updated,
-      duplex: { ...currentTarifs.duplex, ...updated.duplex },
-      rdc: { ...currentTarifs.rdc, ...updated.rdc }
-    };
-
-    await env.CONFIG_KV.put('tarifs', JSON.stringify(mergedTarifs));
+    await env.CONFIG_KV.put('tarifs', JSON.stringify(updated));
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
@@ -757,12 +501,11 @@ async function handleAdminSaveTarifs(request, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const origin = request.headers.get('Origin') || url.origin;
+    const origin = url.origin; // le widget est servi par ce même Worker : origine toujours autorisée
 
-    if (request.method === 'OPTIONS') {
+    if (request.method === 'OPTIONS' && (url.pathname === '/create-checkout' || url.pathname === '/get-availability')) {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
-
     if (url.pathname === '/get-availability' && request.method === 'GET') {
       return handleAvailability(request, env, origin);
     }
@@ -776,7 +519,7 @@ export default {
       const tarifs = await getTarifs(env, request);
       return new Response(JSON.stringify(tarifs), {
         status: 200,
-        headers: { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
       });
     }
     if (url.pathname === '/admin/api/tarifs' && request.method === 'GET') {
@@ -785,7 +528,6 @@ export default {
     if (url.pathname === '/admin/api/tarifs' && request.method === 'POST') {
       return handleAdminSaveTarifs(request, env);
     }
-
     // Tout le reste : fichiers statiques servis depuis public/
     return env.ASSETS.fetch(request);
   },
@@ -794,25 +536,3 @@ export default {
     ctx.waitUntil(sendBalanceReminders(env));
   }
 };
-    statusEl.textContent = 'Tarifs enregistrés — déjà en ligne sur le site.';
-    statusEl.classList.add('ok');
-  } catch(e) {
-    statusEl.textContent = e.message;
-    statusEl.classList.add('error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Enregistrer les tarifs';
-  }
-}
-
-// Connexion automatique via session
-(function init() {
-  const saved = sessionStorage.getItem('admin-password');
-  if(saved) {
-    document.getElementById('password-input').value = saved;
-    login();
-  }
-})();
-</script>
-</body>
-</html>
