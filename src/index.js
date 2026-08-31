@@ -1,32 +1,29 @@
-// Worker Cloudflare unique : sert le site (public/) ET gère deux routes
-// dynamiques, /create-checkout et /get-availability.
-// Remplace l'ancienne approche Cloudflare Pages (functions/*.js séparés).
-
+// Worker Cloudflare unique : sert le site (public/) ET gère les routes d'API/Admin.
 import Stripe from 'stripe';
 
-// -------- À adapter à votre configuration --------
-const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
-const TARIFS_PATH = '/tarifs.json'; // servi depuis public/tarifs.json, même déploiement
-const BLOCKED_DATES_PATH = '/dates-bloquees.json'; // servi depuis public/dates-bloquees.json
+// -------- Configuration des constantes --------
+const SITE_URL = 'https://leslogesdevero.fr';
+const TARIFS_PATH = '/tarifs.json';
+const BLOCKED_DATES_PATH = '/dates-bloquees.json';
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
-// -------- Synchronisation Superhote (à compléter avec vos identifiants) --------
+
 const SUPERHOTE_PROPERTY_KEYS = {
   duplex: 'À_COMPLETER_property_key_duplex',
   rdc: 'À_COMPLETER_property_key_rdc'
 };
-// ---------------------------------------------------------------------------
+
 const FROM_EMAIL = 'Les Loges de Véro <contact@leslogesdevero.fr>';
 const OWNER_EMAIL = 'leslogesdevero@gmail.com';
-const TELEGRAM_CHAT_ID = 'A_COMPLETER'; // votre identifiant de conversation Telegram
+const TELEGRAM_CHAT_ID = 'A_COMPLETER';
 
-function corsHeaders(origin) {
+function corsHeaders(origin = '*') {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
 }
@@ -58,15 +55,17 @@ function parseICS(text) {
 function fmt(d) {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
+
 async function getTarifs(env, request) {
   try {
     const fromKV = await env.CONFIG_KV.get('tarifs', 'json');
     if (fromKV) return fromKV;
-  } catch (e) { console.error('Lecture CONFIG_KV échouée:', e.message); }
-  // Repli : aucune sauvegarde via la page d'administration pour l'instant,
-  // on lit l'ancien fichier statique.
+  } catch (e) { 
+    console.error('Lecture CONFIG_KV échouée:', e.message); 
+  }
+  // Repli : lecture du fichier statique de base si le KV n'est pas encore initialisé
   const res = await env.ASSETS.fetch(new Request(new URL(TARIFS_PATH, request.url)));
-  if (!res.ok) throw new Error('Impossible de charger les tarifs.');
+  if (!res.ok) throw new Error('Impossible de charger les tarifs par défaut.');
   return res.json();
 }
 
@@ -94,6 +93,7 @@ async function getBookedSet(property, env, request) {
 
   return set;
 }
+
 async function sendEmail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) throw new Error('Service d\'email non configuré.');
   const res = await fetch('https://api.resend.com/emails', {
@@ -130,6 +130,7 @@ function getNightlyRate(tarif, dateStr) {
   }
   return tarif.nightlyDefault;
 }
+
 function getAccommodationSubtotal(tarif, checkinDate, nights) {
   let subtotal = 0;
   const d = new Date(checkinDate);
@@ -139,6 +140,7 @@ function getAccommodationSubtotal(tarif, checkinDate, nights) {
   }
   return subtotal;
 }
+
 function getDiscountPercent(tarif, nights) {
   let pct = 0;
   for (const r of (tarif.remises || [])) {
@@ -146,6 +148,7 @@ function getDiscountPercent(tarif, nights) {
   }
   return pct;
 }
+
 function getLastMinutePercent(tarif, checkin) {
   const rdm = tarif.remiseDerniereMinute;
   if (!rdm) return 0;
@@ -246,7 +249,6 @@ async function handleCheckout(request, env, origin) {
     const taxeUnitCents = Math.round(taxeParUnite * 100);
     const taxeQuantity = adultsCount * nights;
 
-    // Acompte de 30% sur l'hébergement seul si l'arrivée est à plus de 30 jours
     const depositThreshold = new Date();
     depositThreshold.setUTCDate(depositThreshold.getUTCDate() + 30);
     const depositThresholdStr = fmt(depositThreshold);
@@ -289,9 +291,6 @@ async function handleCheckout(request, env, origin) {
     const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}${babiesCount > 0 ? ', ' + babiesCount + ' bébé' + (babiesCount > 1 ? 's' : '') + ' (moins de 3 ans)' : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
 
-    // L'email de confirmation au client est obligatoire : s'il échoue, on
-    // n'ouvre pas le paiement plutôt que de laisser une réservation sans
-    // confirmation envoyée.
     try {
       await sendEmail(env, g.email, 'Votre pré-réservation — Les Loges de Véro',
         `<p>Bonjour ${g.prenom},</p>
@@ -322,8 +321,6 @@ async function handleCheckout(request, env, origin) {
       }
     });
 
-    // La notification au propriétaire reste non-bloquante : un souci ici ne
-    // doit pas empêcher un client de payer.
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
@@ -469,7 +466,7 @@ function checkAdminPassword(request, env) {
 }
 
 async function handleAdminGetTarifs(request, env) {
-  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const headers = { ...corsHeaders(), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   if (!checkAdminPassword(request, env)) {
     return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
   }
@@ -482,7 +479,7 @@ async function handleAdminGetTarifs(request, env) {
 }
 
 async function handleAdminSaveTarifs(request, env) {
-  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  const headers = { ...corsHeaders(), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
   if (!checkAdminPassword(request, env)) {
     return new Response(JSON.stringify({ error: 'Mot de passe incorrect.' }), { status: 401, headers });
   }
@@ -491,7 +488,17 @@ async function handleAdminSaveTarifs(request, env) {
     if (!updated.duplex || !updated.rdc) {
       return new Response(JSON.stringify({ error: 'Format de données invalide.' }), { status: 400, headers });
     }
-    await env.CONFIG_KV.put('tarifs', JSON.stringify(updated));
+    
+    // Fusion avec les tarifs existants pour conserver les remises, taxes et frais de ménage
+    const currentTarifs = await getTarifs(env, request);
+    const mergedTarifs = {
+      ...currentTarifs,
+      ...updated,
+      duplex: { ...currentTarifs.duplex, ...updated.duplex },
+      rdc: { ...currentTarifs.rdc, ...updated.rdc }
+    };
+
+    await env.CONFIG_KV.put('tarifs', JSON.stringify(mergedTarifs));
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
@@ -501,11 +508,12 @@ async function handleAdminSaveTarifs(request, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const origin = url.origin; // le widget est servi par ce même Worker : origine toujours autorisée
+    const origin = request.headers.get('Origin') || url.origin;
 
-    if (request.method === 'OPTIONS' && (url.pathname === '/create-checkout' || url.pathname === '/get-availability')) {
+    if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
+
     if (url.pathname === '/get-availability' && request.method === 'GET') {
       return handleAvailability(request, env, origin);
     }
@@ -519,7 +527,7 @@ export default {
       const tarifs = await getTarifs(env, request);
       return new Response(JSON.stringify(tarifs), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+        headers: { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
       });
     }
     if (url.pathname === '/admin/api/tarifs' && request.method === 'GET') {
@@ -528,6 +536,7 @@ export default {
     if (url.pathname === '/admin/api/tarifs' && request.method === 'POST') {
       return handleAdminSaveTarifs(request, env);
     }
+
     // Tout le reste : fichiers statiques servis depuis public/
     return env.ASSETS.fetch(request);
   },
