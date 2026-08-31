@@ -7,48 +7,48 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --limestone:#F6F3EC; --card:#FFFFFF; --ink:#2A2926; --ink-soft:#6b6558;
-    --river:#3E5C6E; --river-soft:#EAF0F2; --forest:#55704B; --forest-soft:#EBF0E7;
-    --brick:#A15A3E; --brick-soft:#F5E7E0; --line:#DED7C6;
+  :root {
+    --limestone: #F6F3EC; --card: #FFFFFF; --ink: #2A2926; --ink-soft: #6b6558;
+    --river: #3E5C6E; --river-soft: #EAF0F2; --forest: #55704B; --forest-soft: #EBF0E7;
+    --brick: #A15A3E; --brick-soft: #F5E7E0; --line: #DED7C6;
   }
-  *{box-sizing:border-box;}
-  body{margin:0; background:var(--limestone); color:var(--ink); font-family:'Work Sans',sans-serif; padding:32px 16px 56px;}
-  .app{max-width:720px; margin:0 auto;}
-  .app-header{text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:3px double var(--line);}
-  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--river); font-weight:600;}
-  .app-header h1{font-family:'Fraunces',serif; font-weight:600; font-size:24px; margin:6px 0 0;}
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--limestone); color: var(--ink); font-family: 'Work Sans', sans-serif; padding: 32px 16px 56px; }
+  .app { max-width: 720px; margin: 0 auto; }
+  .app-header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px double var(--line); }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--river); font-weight: 600; }
+  .app-header h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 24px; margin: 6px 0 0; }
 
-  .login-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:28px; max-width:360px; margin:60px auto; text-align:center;}
-  .login-card input{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:4px; font-size:14px; margin:14px 0;}
-  .login-card button{width:100%; padding:11px; border:none; border-radius:6px; background:var(--river); color:#fff; font-weight:700; font-size:14px; cursor:pointer;}
-  .error-msg{color:var(--brick); font-size:13px; margin-top:8px; min-height:16px;}
+  .login-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 28px; max-width: 360px; margin: 60px auto; text-align: center; }
+  .login-card input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; font-size: 14px; margin: 14px 0; }
+  .login-card button { width: 100%; padding: 11px; border: none; border-radius: 6px; background: var(--river); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .error-msg { color: var(--brick); font-size: 13px; margin-top: 8px; min-height: 16px; }
 
-  .season-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:18px;}
-  .season-card h2{font-family:'Fraunces',serif; font-size:17px; margin:0 0 14px;}
-  .prices-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
-  .price-field label{font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:4px;}
-  .price-field .input-euro{display:flex; align-items:center; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
-  .price-field .input-euro input{border:none; padding:9px 10px; font-size:14px; width:100%;}
-  .price-field .input-euro span{padding:0 10px; color:var(--ink-soft); background:var(--limestone); align-self:stretch; display:flex; align-items:center; font-size:13px;}
+  .season-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 18px; }
+  .season-card h2 { font-family: 'Fraunces', serif; font-size: 17px; margin: 0 0 14px; }
+  .prices-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .price-field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); display: block; margin-bottom: 4px; }
+  .price-field .input-euro { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .price-field .input-euro input { border: none; padding: 9px 10px; font-size: 14px; width: 100%; }
+  .price-field .input-euro span { padding: 0 10px; color: var(--ink-soft); background: var(--limestone); align-self: stretch; display: flex; align-items: center; font-size: 13px; }
 
-  .range-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .range-row input[type="date"]{padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px; flex:1;}
-  .range-row .remove-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; color:var(--brick); cursor:pointer; font-size:15px; flex-shrink:0;}
-  .add-range-btn{background:none; border:1px dashed var(--line); border-radius:4px; padding:7px 12px; font-size:12px; color:var(--river); cursor:pointer; margin-top:4px;}
+  .range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .range-row input[type="date"] { padding: 7px 8px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; flex: 1; }
+  .range-row .remove-btn { background: none; border: 1px solid var(--line); border-radius: 4px; width: 28px; height: 28px; color: var(--brick); cursor: pointer; font-size: 15px; flex-shrink: 0; }
+  .add-range-btn { background: none; border: 1px dashed var(--line); border-radius: 4px; padding: 7px 12px; font-size: 12px; color: var(--river); cursor: pointer; margin-top: 4px; }
 
-  .default-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:18px;}
-  .default-card h2{font-family:'Fraunces',serif; font-size:16px; margin:0 0 4px;}
-  .default-card p{font-size:12px; color:var(--ink-soft); margin:0 0 14px;}
+  .default-card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 18px; }
+  .default-card h2 { font-family: 'Fraunces', serif; font-size: 16px; margin: 0 0 4px; }
+  .default-card p { font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; }
 
-  .save-bar{position:sticky; bottom:0; background:var(--limestone); padding:16px 0; margin-top:8px;}
-  .save-btn{width:100%; padding:13px; border:none; border-radius:6px; background:var(--forest); color:#fff; font-weight:700; font-size:15px; cursor:pointer;}
-  .save-btn:disabled{background:#c9c3b4; cursor:not-allowed;}
-  .status-line{text-align:center; font-size:13px; margin-top:10px; min-height:18px;}
-  .status-line.ok{color:var(--forest);}
-  .status-line.error{color:var(--brick);}
+  .save-bar { position: sticky; bottom: 0; background: var(--limestone); padding: 16px 0; margin-top: 8px; }
+  .save-btn { width: 100%; padding: 13px; border: none; border-radius: 6px; background: var(--forest); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+  .save-btn:disabled { background: #c9c3b4; cursor: not-allowed; }
+  .status-line { text-align: center; font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .status-line.ok { color: var(--forest); font-weight: 600; }
+  .status-line.error { color: var(--brick); font-weight: 600; }
 
-  .hidden{display:none;}
+  .hidden { display: none; }
 </style>
 </head>
 <body>
@@ -71,11 +71,11 @@
       <p>Utilisé pour toute date qui ne serait couverte par aucune des 3 saisons ci-dessous.</p>
       <div class="prices-row">
         <div class="price-field">
-          <label>Le Duplex</label>
+          <label for="default-duplex">Le Duplex</label>
           <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€/nuit</span></div>
         </div>
         <div class="price-field">
-          <label>Le Rez-de-chaussée</label>
+          <label for="default-rdc">Le Rez-de-chaussée</label>
           <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€/nuit</span></div>
         </div>
       </div>
@@ -96,21 +96,22 @@ const SEASON_NAMES = ['Haute saison', 'Moyenne saison', 'Basse saison'];
 let password = '';
 let fullTarifs = null;
 
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-
 document.getElementById('login-btn').addEventListener('click', login);
 document.getElementById('password-input').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
 
-async function login(){
-  const pwd = document.getElementById('password-input').value;
+async function login() {
+  const pwd = document.getElementById('password-input').value.trim();
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  try{
+  
+  if(!pwd) {
+    errEl.textContent = 'Veuillez saisir un mot de passe.';
+    return;
+  }
+
+  try {
     const res = await fetch(ADMIN_API, { headers: { 'X-Admin-Password': pwd } });
-    if(!res.ok){
+    if(!res.ok) {
       errEl.textContent = 'Mot de passe incorrect.';
       return;
     }
@@ -120,24 +121,24 @@ async function login(){
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('admin-view').classList.remove('hidden');
     renderForm();
-  }catch(e){
-    errEl.textContent = 'Erreur de connexion, réessayez.';
+  } catch(e) {
+    errEl.textContent = 'Erreur de connexion réseau, réessayez.';
   }
 }
 
-function renderForm(){
-  document.getElementById('default-duplex').value = fullTarifs.duplex.nightlyDefault ?? '';
-  document.getElementById('default-rdc').value = fullTarifs.rdc.nightlyDefault ?? '';
+function renderForm() {
+  document.getElementById('default-duplex').value = fullTarifs.duplex?.nightlyDefault ?? '';
+  document.getElementById('default-rdc').value = fullTarifs.rdc?.nightlyDefault ?? '';
 
   const container = document.getElementById('seasons-container');
   container.innerHTML = '';
 
-  for(const seasonName of SEASON_NAMES){
-    const duplexSeasons = (fullTarifs.duplex.saisons || []).filter(s => s.nom === seasonName);
-    const rdcSeasons = (fullTarifs.rdc.saisons || []).filter(s => s.nom === seasonName);
+  for(const seasonName of SEASON_NAMES) {
+    const duplexSeasons = (fullTarifs.duplex?.saisons || []).filter(s => s.nom === seasonName);
+    const rdcSeasons = (fullTarifs.rdc?.saisons || []).filter(s => s.nom === seasonName);
     const duplexPrice = duplexSeasons[0] ? duplexSeasons[0].nightly : '';
     const rdcPrice = rdcSeasons[0] ? rdcSeasons[0].nightly : '';
-    // Les périodes de dates sont partagées entre les deux logements
+    
     const ranges = duplexSeasons.map(s => ({ debut: s.debut, fin: s.fin }));
 
     const card = document.createElement('div');
@@ -167,14 +168,14 @@ function renderForm(){
   }
 }
 
-function addRangeRow(container, debut, fin){
+function addRangeRow(container, debut, fin) {
   const row = document.createElement('div');
   row.className = 'range-row';
   row.innerHTML = `
     <input type="date" class="range-debut" value="${debut}">
     <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="range-fin" value="${fin}">
-    <button type="button" class="remove-btn">×</button>
+    <button type="button" class="remove-btn" title="Supprimer la période">×</button>
   `;
   row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
   container.appendChild(row);
@@ -182,32 +183,56 @@ function addRangeRow(container, debut, fin){
 
 document.getElementById('save-btn').addEventListener('click', save);
 
-async function save(){
+async function save() {
   const btn = document.getElementById('save-btn');
   const statusEl = document.getElementById('status-line');
   btn.disabled = true;
+  btn.textContent = 'Enregistrement...';
   statusEl.textContent = '';
   statusEl.className = 'status-line';
 
-  try{
+  try {
     const defaultDuplex = Number(document.getElementById('default-duplex').value);
     const defaultRdc = Number(document.getElementById('default-rdc').value);
 
     const duplexSeasons = [];
     const rdcSeasons = [];
+    let hasDateError = false;
 
     document.querySelectorAll('.season-card').forEach(card => {
       const seasonName = card.dataset.season;
-      const priceDuplex = Number(card.querySelector('.price-duplex').value);
-      const priceRdc = Number(card.querySelector('.price-rdc').value);
+      const valDuplex = card.querySelector('.price-duplex').value;
+      const valRdc = card.querySelector('.price-rdc').value;
+      const priceDuplex = valDuplex !== '' ? Number(valDuplex) : null;
+      const priceRdc = valRdc !== '' ? Number(valRdc) : null;
+
       card.querySelectorAll('.range-row').forEach(row => {
         const debut = row.querySelector('.range-debut').value;
         const fin = row.querySelector('.range-fin').value;
-        if(!debut || !fin) return; // ligne incomplète, ignorée
-        if(priceDuplex) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex });
-        if(priceRdc) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc });
+        
+        // Ignorer si les deux champs sont vides
+        if(!debut && !fin) return; 
+
+        // Erreur si un seul champ de date est rempli
+        if(!debut || !fin) {
+          hasDateError = true;
+          return;
+        }
+
+        // Vérification de la chronologie des dates
+        if(new Date(debut) > new Date(fin)) {
+          hasDateError = true;
+          return;
+        }
+
+        if(priceDuplex !== null) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex });
+        if(priceRdc !== null) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc });
       });
     });
+
+    if(hasDateError) {
+      throw new Error('Veuillez vérifier les dates saisies (champs incomplets ou date de début postérieure à la fin).');
+    }
 
     fullTarifs.duplex.nightlyDefault = defaultDuplex;
     fullTarifs.duplex.saisons = duplexSeasons;
@@ -219,23 +244,25 @@ async function save(){
       headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
       body: JSON.stringify(fullTarifs)
     });
+    
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la sauvegarde.');
 
     statusEl.textContent = 'Tarifs enregistrés — déjà en ligne sur le site.';
     statusEl.classList.add('ok');
-  }catch(e){
+  } catch(e) {
     statusEl.textContent = e.message;
     statusEl.classList.add('error');
   } finally {
     btn.disabled = false;
+    btn.textContent = 'Enregistrer les tarifs';
   }
 }
 
-// Reconnexion automatique si un mot de passe est déjà en mémoire pour cette session
-(function init(){
+// Connexion automatique via session
+(function init() {
   const saved = sessionStorage.getItem('admin-password');
-  if(saved){
+  if(saved) {
     document.getElementById('password-input').value = saved;
     login();
   }
