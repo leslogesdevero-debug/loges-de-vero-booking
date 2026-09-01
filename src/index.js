@@ -32,13 +32,13 @@ function corsHeaders(origin = '*') {
   };
 }
 
+// Parseur de dates iCal tolérant aux formats d'heures et de timezones
 function parseICSDate(line) {
   const rawVal = line.split(':').pop().trim();
-  const val = rawVal.split('T')[0];
-  const y = +val.slice(0, 4);
-  const m = +val.slice(4, 6) - 1;
-  const d = +val.slice(6, 8);
-  return new Date(Date.UTC(y, m, d));
+  const match = rawVal.match(/(\d{4})(\d{2})(\d{2})/);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return new Date(Date.UTC(+y, +m - 1, +d));
 }
 
 function parseICSEvents(icsText) {
@@ -56,9 +56,11 @@ function parseICSEvents(icsText) {
       currentEvent = null;
     } else if (currentEvent) {
       if (line.startsWith('DTSTART')) {
-        currentEvent.start = parseICSDate(line);
+        const dt = parseICSDate(line);
+        if (dt) currentEvent.start = dt;
       } else if (line.startsWith('DTEND')) {
-        currentEvent.end = parseICSDate(line);
+        const dt = parseICSDate(line);
+        if (dt) currentEvent.end = dt;
       }
     }
   }
@@ -114,19 +116,24 @@ export default {
 
         let events = [];
         try {
-          const icsRes = await fetch(icsUrl);
+          const icsRes = await fetch(icsUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+          });
           if (icsRes.ok) {
             const icsText = await icsRes.text();
             events = parseICSEvents(icsText);
           }
         } catch (err) {
-          console.error('Erreur lecture iCal Superhote:', err);
+          console.error('Erreur fetch iCal Superhote:', err);
         }
 
         const manualBlocked = await fetchBlockedDates(env, request.url);
 
         const allBlocked = [
-          ...events.map(e => ({ start: e.start.toISOString().split('T')[0], end: e.end.toISOString().split('T')[0] })),
+          ...events.map(e => ({ 
+            start: e.start.toISOString().split('T')[0], 
+            end: e.end.toISOString().split('T')[0] 
+          })),
           ...manualBlocked.filter(b => b.property === property)
         ];
 
@@ -237,14 +244,12 @@ export default {
             <p><i>N'oubliez pas d'ajouter cette réservation manuellement dans votre application Superhote pour bloquer ces dates sur les autres plateformes.</i></p>
           `;
 
-          // Notification pour vous
           await sendEmail(env, {
             to: OWNER_EMAIL,
             subject: `[Réservation Directe] ${PROPERTY_NAMES[meta.property]} - ${meta.name}`,
             html: emailBody
           });
 
-          // Confirmation pour le client
           await sendEmail(env, {
             to: meta.email,
             subject: 'Confirmation de votre réservation - Les Loges de Véro',
