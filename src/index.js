@@ -248,13 +248,17 @@ async function handleCheckout(request, env, origin) {
     const taxeUnitCents = Math.round(taxeParUnite * 100);
     const taxeQuantity = adultsCount * nights;
 
-    // Acompte de 30% sur l'hébergement seul si l'arrivée est à plus de 30 jours
+    // Acompte de 30% sur le total (hébergement + ménage + taxe de séjour)
+    // si l'arrivée est à plus de 30 jours.
     const depositThreshold = new Date();
     depositThreshold.setUTCDate(depositThreshold.getUTCDate() + 30);
     const depositThresholdStr = fmt(depositThreshold);
     const depositMode = checkin > depositThresholdStr;
-    const chargeAccommodationCents = depositMode ? Math.round(accommodationCents * 0.30) : accommodationCents;
-    const remainingBalanceCents = accommodationCents - chargeAccommodationCents;
+    const depositFactor = depositMode ? 0.30 : 1;
+
+    const chargeAccommodationCents = Math.round(accommodationCents * depositFactor);
+    const chargeCleaningCents = Math.round(cleaningCents * depositFactor);
+    const chargeTaxeUnitCents = Math.round(taxeUnitCents * depositFactor);
 
     const lineItems = [{
       price_data: {
@@ -264,29 +268,33 @@ async function handleCheckout(request, env, origin) {
       },
       quantity: 1
     }];
-    if (cleaningCents > 0) {
+    if (chargeCleaningCents > 0) {
       lineItems.push({
         price_data: {
           currency: 'eur',
-          unit_amount: cleaningCents,
-          product_data: { name: `Ménage${tarif.cleaningFeeDetail ? ' (' + tarif.cleaningFeeDetail + ')' : ''}` }
+          unit_amount: chargeCleaningCents,
+          product_data: { name: `Ménage${depositMode ? ' (acompte 30%)' : ''}${tarif.cleaningFeeDetail ? ' — ' + tarif.cleaningFeeDetail : ''}` }
         },
         quantity: 1
       });
     }
-    if (taxeUnitCents > 0 && taxeQuantity > 0) {
+    if (chargeTaxeUnitCents > 0 && taxeQuantity > 0) {
       lineItems.push({
         price_data: {
           currency: 'eur',
-          unit_amount: taxeUnitCents,
-          product_data: { name: `Taxe de séjour (${adultsCount} adulte${adultsCount > 1 ? 's' : ''} × ${nights} nuit${nights > 1 ? 's' : ''})` }
+          unit_amount: chargeTaxeUnitCents,
+          product_data: { name: `Taxe de séjour${depositMode ? ' (acompte 30%)' : ''} (${adultsCount} adulte${adultsCount > 1 ? 's' : ''} × ${nights} nuit${nights > 1 ? 's' : ''})` }
         },
         quantity: taxeQuantity
       });
     }
 
-    const fullTotalTTC = ((accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
-    const totalTTC = ((chargeAccommodationCents + cleaningCents + taxeUnitCents * taxeQuantity) / 100).toFixed(2);
+    const fullTotalCents = accommodationCents + cleaningCents + taxeUnitCents * taxeQuantity;
+    const chargedNowCents = chargeAccommodationCents + chargeCleaningCents + chargeTaxeUnitCents * taxeQuantity;
+    const remainingBalanceCents = fullTotalCents - chargedNowCents;
+
+    const fullTotalTTC = (fullTotalCents / 100).toFixed(2);
+    const totalTTC = (chargedNowCents / 100).toFixed(2);
     const remainingBalanceTTC = (remainingBalanceCents / 100).toFixed(2);
     const occupantsTxt = `${adultsCount} adulte${adultsCount > 1 ? 's' : ''}${childrenCount > 0 ? ', ' + childrenCount + ' enfant' + (childrenCount > 1 ? 's' : '') : ''}${babiesCount > 0 ? ', ' + babiesCount + ' bébé' + (babiesCount > 1 ? 's' : '') + ' (moins de 3 ans)' : ''}`;
     const datesTxt = `du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})`;
