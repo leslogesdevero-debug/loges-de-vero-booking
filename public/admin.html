@@ -37,6 +37,11 @@
   .range-row .remove-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; color:var(--brick); cursor:pointer; font-size:15px; flex-shrink:0;}
   .add-range-btn{background:none; border:1px dashed var(--line); border-radius:4px; padding:7px 12px; font-size:12px; color:var(--river); cursor:pointer; margin-top:4px;}
 
+  .blocked-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .blocked-row input[type="date"]{padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px;}
+  .blocked-row input[type="text"]{padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px; flex:1; min-width:140px;}
+  .blocked-row .remove-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; color:var(--brick); cursor:pointer; font-size:15px; flex-shrink:0;}
+
   .default-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:18px;}
   .default-card h2{font-family:'Fraunces',serif; font-size:16px; margin:0 0 4px;}
   .default-card p{font-size:12px; color:var(--ink-soft); margin:0 0 14px;}
@@ -81,6 +86,14 @@
       </div>
     </div>
 
+    <div class="default-card">
+      <h2>Réservations ouvertes jusqu'au</h2>
+      <p>Aucune réservation ne sera possible au-delà de cette date. Pour ouvrir de nouvelles périodes (ex. le premier semestre 2027), reculez simplement cette date.</p>
+      <input type="date" id="open-until" style="padding:9px 10px; border:1px solid var(--line); border-radius:4px; font-size:14px; width:100%;">
+    </div>
+
+    <div id="blocked-container"></div>
+
     <div id="seasons-container"></div>
 
     <div class="save-bar">
@@ -93,6 +106,7 @@
 <script>
 const ADMIN_API = '/admin/api/tarifs';
 const SEASON_NAMES = ['Haute saison', 'Moyenne saison', 'Basse saison'];
+const PROPERTIES = [{ key: 'duplex', label: 'Le Duplex' }, { key: 'rdc', label: 'Le Rez-de-chaussée' }];
 let password = '';
 let fullTarifs = null;
 
@@ -128,6 +142,9 @@ async function login(){
 function renderForm(){
   document.getElementById('default-duplex').value = fullTarifs.duplex.nightlyDefault ?? '';
   document.getElementById('default-rdc').value = fullTarifs.rdc.nightlyDefault ?? '';
+  document.getElementById('open-until').value = fullTarifs.reservationsOuvertesJusquau || '';
+
+  renderBlockedSection();
 
   const container = document.getElementById('seasons-container');
   container.innerHTML = '';
@@ -167,6 +184,43 @@ function renderForm(){
   }
 }
 
+function renderBlockedSection(){
+  const container = document.getElementById('blocked-container');
+  container.innerHTML = '';
+  const datesBloquees = fullTarifs.datesBloquees || {};
+
+  for(const prop of PROPERTIES){
+    const card = document.createElement('div');
+    card.className = 'season-card';
+    card.dataset.property = prop.key;
+    card.innerHTML = `
+      <h2>Périodes fermées — ${prop.label}</h2>
+      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Travaux, entretien... Ces dates seront indisponibles à la réservation.</p>
+      <div class="blocked-list"></div>
+      <button type="button" class="add-blocked-btn">+ Fermer une période</button>
+    `;
+    const list = card.querySelector('.blocked-list');
+    const ranges = datesBloquees[prop.key] || [];
+    for(const r of ranges) addBlockedRow(list, r.debut, r.fin, r.motif);
+    card.querySelector('.add-blocked-btn').addEventListener('click', () => addBlockedRow(list, '', '', ''));
+    container.appendChild(card);
+  }
+}
+
+function addBlockedRow(container, debut, fin, motif){
+  const row = document.createElement('div');
+  row.className = 'blocked-row';
+  row.innerHTML = `
+    <input type="date" class="blocked-debut" value="${debut || ''}">
+    <span style="font-size:12px; color:var(--ink-soft);">au</span>
+    <input type="date" class="blocked-fin" value="${fin || ''}">
+    <input type="text" class="blocked-motif" placeholder="Motif (ex. travaux)" value="${motif ? motif.replace(/"/g,'&quot;') : ''}">
+    <button type="button" class="remove-btn">×</button>
+  `;
+  row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
+
 function addRangeRow(container, debut, fin){
   const row = document.createElement('div');
   row.className = 'range-row';
@@ -197,6 +251,7 @@ async function save(){
     const rdcSeasons = [];
 
     document.querySelectorAll('.season-card').forEach(card => {
+      if(!card.dataset.season) return; // carte "périodes fermées", pas une saison
       const seasonName = card.dataset.season;
       const priceDuplex = Number(card.querySelector('.price-duplex').value);
       const priceRdc = Number(card.querySelector('.price-rdc').value);
@@ -213,6 +268,22 @@ async function save(){
     fullTarifs.duplex.saisons = duplexSeasons;
     fullTarifs.rdc.nightlyDefault = defaultRdc;
     fullTarifs.rdc.saisons = rdcSeasons;
+
+    const openUntil = document.getElementById('open-until').value;
+    if(openUntil) fullTarifs.reservationsOuvertesJusquau = openUntil;
+
+    const datesBloquees = { duplex: [], rdc: [] };
+    document.querySelectorAll('#blocked-container .season-card').forEach(card => {
+      const prop = card.dataset.property;
+      card.querySelectorAll('.blocked-row').forEach(row => {
+        const debut = row.querySelector('.blocked-debut').value;
+        const fin = row.querySelector('.blocked-fin').value;
+        const motif = row.querySelector('.blocked-motif').value;
+        if(!debut || !fin) return; // ligne incomplète, ignorée
+        datesBloquees[prop].push({ debut, fin, motif: motif || '' });
+      });
+    });
+    fullTarifs.datesBloquees = datesBloquees;
 
     const res = await fetch(ADMIN_API, {
       method: 'POST',
