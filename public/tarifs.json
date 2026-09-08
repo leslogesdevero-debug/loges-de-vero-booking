@@ -1,45 +1,120 @@
 {
-  "reservationsOuvertesJusquau": "2027-12-31",
+  "reservationsOuvertesJusquau": "2026-12-31",
+  "datesBloquees": { "duplex": [], "rdc": [] },
   "duplex": {
-    "nightlyDefault": 70,
+    "nightlyDefault": 60,
     "saisons": [
-      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 70 },
-      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 76 },
-      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 85 },
-      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 76 },
-      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 70 }
+      {
+        "nom": "Basse saison",
+        "debut": "2026-01-01",
+        "fin": "2026-03-31",
+        "nightly": 60
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2026-04-01",
+        "fin": "2026-06-30",
+        "nightly": 76
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2026-07-01",
+        "fin": "2026-08-31",
+        "nightly": 85
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2026-09-01",
+        "fin": "2026-10-31",
+        "nightly": 76
+      },
+      {
+        "nom": "Basse saison",
+        "debut": "2026-11-01",
+        "fin": "2026-12-31",
+        "nightly": 60
+      }
     ],
     "remises": [
-      { "minNuits": 7, "pourcentage": 5 },
-      { "minNuits": 14, "pourcentage": 10 },
-      { "minNuits": 28, "pourcentage": 15 }
+      {
+        "minNuits": 7,
+        "pourcentage": 5
+      },
+      {
+        "minNuits": 14,
+        "pourcentage": 10
+      },
+      {
+        "minNuits": 28,
+        "pourcentage": 15
+      }
     ],
-    "remiseDerniereMinute": { "seuilHeures": 48, "pourcentage": 10 },
+    "remiseDerniereMinute": {
+      "seuilHeures": 48,
+      "pourcentage": 10
+    },
     "cleaningFee": 48,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
     "minNights": 1,
     "maxGuests": 4,
-    "taxeSejourParAdulteParNuit": 1.10
+    "taxeSejourParAdulteParNuit": 1.1
   },
   "rdc": {
-    "nightlyDefault": 90,
+    "nightlyDefault": 80,
     "saisons": [
-      { "nom": "Basse saison", "debut": "2026-01-01", "fin": "2026-03-31", "nightly": 90 },
-      { "nom": "Moyenne saison", "debut": "2026-04-01", "fin": "2026-06-30", "nightly": 100 },
-      { "nom": "Haute saison", "debut": "2026-07-01", "fin": "2026-08-31", "nightly": 115 },
-      { "nom": "Moyenne saison", "debut": "2026-09-01", "fin": "2026-10-31", "nightly": 100 },
-      { "nom": "Basse saison", "debut": "2026-11-01", "fin": "2026-12-31", "nightly": 90 }
+      {
+        "nom": "Basse saison",
+        "debut": "2026-01-01",
+        "fin": "2026-03-31",
+        "nightly": 80
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2026-04-01",
+        "fin": "2026-06-30",
+        "nightly": 100
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2026-07-01",
+        "fin": "2026-08-31",
+        "nightly": 115
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2026-09-01",
+        "fin": "2026-10-31",
+        "nightly": 100
+      },
+      {
+        "nom": "Basse saison",
+        "debut": "2026-11-01",
+        "fin": "2026-12-31",
+        "nightly": 80
+      }
     ],
     "remises": [
-      { "minNuits": 7, "pourcentage": 5 },
-      { "minNuits": 14, "pourcentage": 10 },
-      { "minNuits": 28, "pourcentage": 15 }
+      {
+        "minNuits": 7,
+        "pourcentage": 5
+      },
+      {
+        "minNuits": 14,
+        "pourcentage": 10
+      },
+      {
+        "minNuits": 28,
+        "pourcentage": 15
+      }
     ],
-    "remiseDerniereMinute": { "seuilHeures": 48, "pourcentage": 10 },
+    "remiseDerniereMinute": {
+      "seuilHeures": 48,
+      "pourcentage": 10
+    },
     "cleaningFee": 60,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
     "minNights": 1,
     "maxGuests": 6,
-    "taxeSejourParAdulteParNuit": 1.10
+    "taxeSejourParAdulteParNuit": 1.1
   }
 }
