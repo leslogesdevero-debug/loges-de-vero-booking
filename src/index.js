@@ -7,7 +7,6 @@ import Stripe from 'stripe';
 // -------- À adapter à votre configuration --------
 const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
 const TARIFS_PATH = '/tarifs.json'; // servi depuis public/tarifs.json, même déploiement
-const BLOCKED_DATES_PATH = '/dates-bloquees.json'; // servi depuis public/dates-bloquees.json
 const ICS_URLS = {
   duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
   rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
@@ -72,7 +71,7 @@ async function getTarifs(env, request) {
   return res.json();
 }
 
-async function getBookedSet(property, env, request) {
+async function getBookedSet(property, env, request, tarifs) {
   const res = await fetch(ICS_URLS[property]);
   if (!res.ok) throw new Error('Impossible de lire le calendrier de disponibilité.');
   const events = parseICS(await res.text());
@@ -83,16 +82,14 @@ async function getBookedSet(property, env, request) {
   }
 
   try {
-    const blockedRes = await env.ASSETS.fetch(new Request(new URL(BLOCKED_DATES_PATH, request.url)));
-    if (blockedRes.ok) {
-      const blocked = await blockedRes.json();
-      for (const r of (blocked[property] || [])) {
-        const d = new Date(r.debut + 'T00:00:00Z');
-        const end = new Date(r.fin + 'T00:00:00Z');
-        while (d <= end) { set.add(fmt(d)); d.setUTCDate(d.getUTCDate() + 1); }
-      }
+    const t = tarifs || await getTarifs(env, request);
+    const blocked = (t.datesBloquees && t.datesBloquees[property]) || [];
+    for (const r of blocked) {
+      const d = new Date(r.debut + 'T00:00:00Z');
+      const end = new Date(r.fin + 'T00:00:00Z');
+      while (d <= end) { set.add(fmt(d)); d.setUTCDate(d.getUTCDate() + 1); }
     }
-  } catch (e) { console.error('Lecture dates-bloquees.json échouée:', e.message); }
+  } catch (e) { console.error('Lecture des dates bloquées échouée:', e.message); }
 
   return set;
 }
@@ -165,8 +162,9 @@ async function handleAvailability(request, env, origin) {
     return new Response(JSON.stringify({ error: 'Logement inconnu.' }), { status: 400, headers });
   }
   try {
+    const tarifs = await getTarifs(env, request);
     const result = {};
-    await Promise.all(properties.map(async p => { result[p] = Array.from(await getBookedSet(p, env, request)); }));
+    await Promise.all(properties.map(async p => { result[p] = Array.from(await getBookedSet(p, env, request, tarifs)); }));
     return new Response(JSON.stringify(result), { status: 200, headers });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message || 'Erreur serveur.' }), { status: 500, headers });
@@ -227,7 +225,7 @@ async function handleCheckout(request, env, origin) {
       return new Response(JSON.stringify({ error: `Ce logement accueille au maximum ${tarif.maxGuests} personnes.` }), { status: 400, headers });
     }
 
-    const booked = await getBookedSet(property, env, request);
+    const booked = await getBookedSet(property, env, request, tarifs);
     const d = new Date(start);
     while (d < end) {
       if (booked.has(fmt(d))) {
