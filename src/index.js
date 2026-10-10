@@ -8,8 +8,8 @@ import Stripe from 'stripe';
 const SITE_URL = 'https://leslogesdevero.fr'; // vos pages de confirmation/annulation
 const TARIFS_PATH = '/tarifs.json'; // servi depuis public/tarifs.json, même déploiement
 const ICS_URLS = {
-  duplex: 'https://app.superhote.com/export-ics/pCsTr5ULxk',
-  rdc: 'https://app.superhote.com/export-ics/qCQMbqI1LK'
+  duplex: 'https://connect.superhote.com/api/ical/kuD1oZTI7EeH',
+  rdc: 'https://connect.superhote.com/api/ical/ugLRM5aAoGlh'
 };
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 // -------- Synchronisation Superhote (à compléter avec vos identifiants) --------
