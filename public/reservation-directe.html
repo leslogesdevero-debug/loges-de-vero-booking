@@ -146,11 +146,17 @@
         <div class="summary-row" id="row-nightly"></div>
         <div class="summary-row" id="row-discount"></div>
         <div class="summary-row" id="row-lastminute"></div>
+        <div class="summary-row" id="row-promo"></div>
         <div class="summary-row" id="row-cleaning"></div>
         <div class="summary-row" id="row-taxe"></div>
         <div class="summary-row total" id="row-total"></div>
         <div class="summary-row" id="row-deposit"></div>
         <div class="form-note" id="row-balance-note"></div>
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <input type="text" id="promo-input" placeholder="Code promo" autocomplete="off" style="flex:1; padding:9px 10px; border:1px solid var(--line); border-radius:4px; font-family:'Work Sans',sans-serif; font-size:13px; text-transform:uppercase;">
+          <button type="button" id="promo-btn" style="padding:9px 14px; border:1px solid var(--river); border-radius:4px; background:#fff; color:var(--river); font-weight:600; font-size:13px; cursor:pointer;">Appliquer</button>
+        </div>
+        <div class="form-note" id="promo-msg" style="min-height:16px;"></div>
       </div>
     </div>
 
@@ -224,10 +230,10 @@
 const FUNCTION_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/create-checkout';
 // Fichier de tarifs, hébergé sur le même projet Cloudflare Pages
 const TARIFS_URL = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/tarifs.json';
-const BLOCKED_DATES_URL = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/dates-bloquees.json';
 // =========================================================================
 
 const AVAILABILITY_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/get-availability';
+const PROMO_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/validate-promo';
 const PROPERTY_NAMES = { duplex: 'Le Duplex', rdc: 'Le Rez-de-chaussée' };
 const FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -238,11 +244,11 @@ let currentProp = 'duplex';
 let view = new Date(today.getFullYear(), today.getMonth(), 1);
 let booked = {}; // { duplex: Set, rdc: Set }
 let tarifs = null;
-let blockedRanges = null;
 let selection = { checkin: null, checkout: null };
 let adults = 2;
 let children = 0;
 let babies = 0;
+let promo = null; // { code, pourcentage } une fois un code validé par le serveur
 
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -255,25 +261,6 @@ async function loadAvailability(prop){
   }catch(e){
     booked[prop] = booked[prop] || new Set();
     setStatus('Disponibilités indisponibles pour le moment, réessayez plus tard.', true);
-  }
-  mergeBlockedDates(prop);
-}
-
-function mergeBlockedDates(prop){
-  const ranges = (blockedRanges && blockedRanges[prop]) || [];
-  for(const r of ranges){
-    const d = new Date(r.debut);
-    const end = new Date(r.fin);
-    while(d <= end){ booked[prop].add(fmt(d)); d.setDate(d.getDate()+1); }
-  }
-}
-
-async function loadBlockedDates(){
-  try{
-    const res = await fetch(BLOCKED_DATES_URL, { cache: 'no-store' });
-    blockedRanges = await res.json();
-  }catch(e){
-    blockedRanges = {};
   }
 }
 
@@ -485,10 +472,14 @@ function updateSummary(){
   const subtotal = t ? getAccommodationSubtotal(t, selection.checkin, nights) : 0;
   const discountPct = t ? getDiscountPercent(t, nights) : 0;
   const lastMinutePct = t ? getLastMinutePercent(t, selection.checkin) : 0;
-  const totalDiscountPct = discountPct + lastMinutePct;
+  const promoPct = promo ? promo.pourcentage : 0;
+  const totalDiscountPct = Math.min(discountPct + lastMinutePct + promoPct, 100);
   const discountAmount = Math.round(subtotal * discountPct / 100 * 100) / 100;
   const lastMinuteAmount = Math.round(subtotal * lastMinutePct / 100 * 100) / 100;
-  const accommodation = Math.round((subtotal - discountAmount - lastMinuteAmount) * 100) / 100;
+  const promoAmount = Math.round(subtotal * promoPct / 100 * 100) / 100;
+  // Même méthode de calcul que le serveur : une seule remise cumulée, arrondie une fois.
+  const combinedDiscount = Math.round(subtotal * totalDiscountPct / 100 * 100) / 100;
+  const accommodation = Math.round((subtotal - combinedDiscount) * 100) / 100;
   const cleaning = t ? (t.cleaningFee || 0) : 0;
   const cleaningDetail = t ? (t.cleaningFeeDetail || '') : '';
   const taxeParUnite = t ? (t.taxeSejourParAdulteParNuit || 0) : 0;
@@ -506,6 +497,8 @@ function updateSummary(){
     ? `<span>Remise séjour longue durée (−${discountPct}%)</span><span>−${discountAmount.toFixed(2)} €</span>` : '';
   document.getElementById('row-lastminute').innerHTML = lastMinuteAmount
     ? `<span>Remise dernière minute (−${lastMinutePct}%)</span><span>−${lastMinuteAmount.toFixed(2)} €</span>` : '';
+  document.getElementById('row-promo').innerHTML = (promo && promoAmount)
+    ? `<span>Code promo ${promo.code} (−${promoPct}%)</span><span>−${promoAmount.toFixed(2)} €</span>` : '';
   document.getElementById('row-cleaning').innerHTML = cleaning
     ? `<span>Ménage${cleaningDetail ? ' <span style="font-weight:400;font-size:11px;">(' + cleaningDetail + ')</span>' : ''}</span><span>${cleaning} €</span>` : '';
   document.getElementById('row-taxe').innerHTML = taxeSejour
@@ -547,6 +540,52 @@ document.getElementById('babies-plus').addEventListener('click', () => {
   if(babies < 5){ babies++; document.getElementById('babies-count').textContent = babies; updateSummary(); }
 });
 
+function setPromoMessage(text, color){
+  const msg = document.getElementById('promo-msg');
+  msg.textContent = text;
+  msg.style.color = color || '';
+}
+
+document.getElementById('promo-btn').addEventListener('click', async () => {
+  const code = document.getElementById('promo-input').value.trim();
+  if(!code){
+    promo = null;
+    setPromoMessage('');
+    updateSummary();
+    return;
+  }
+  setPromoMessage('Vérification…');
+  try{
+    const res = await fetch(PROMO_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const data = await res.json();
+    if(data.valid){
+      promo = { code: data.code, pourcentage: data.pourcentage };
+      setPromoMessage(`Code ${data.code} appliqué : −${data.pourcentage}% sur l'hébergement.`, 'var(--forest)');
+    } else {
+      promo = null;
+      setPromoMessage('Code promo invalide ou expiré.', 'var(--brick)');
+    }
+  }catch(e){
+    promo = null;
+    setPromoMessage('Impossible de vérifier le code pour le moment.', 'var(--brick)');
+  }
+  updateSummary();
+});
+
+// Si le texte est modifié après application, le code n'est plus considéré comme appliqué.
+document.getElementById('promo-input').addEventListener('input', () => {
+  const typed = document.getElementById('promo-input').value.trim().toUpperCase();
+  if(promo && typed !== promo.code){
+    promo = null;
+    setPromoMessage('');
+    updateSummary();
+  }
+});
+
 document.getElementById('book-btn').addEventListener('click', async () => {
   const btn = document.getElementById('book-btn');
   btn.disabled = true;
@@ -555,7 +594,7 @@ document.getElementById('book-btn').addEventListener('click', async () => {
     const res = await fetch(FUNCTION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, children, babies, guest: getGuestInfo() })
+      body: JSON.stringify({ property: currentProp, checkin: selection.checkin, checkout: selection.checkout, adults, children, babies, guest: getGuestInfo(), promoCode: promo ? promo.code : '' })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Erreur lors de la préparation du paiement.');
@@ -588,7 +627,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 (async function init(){
-  await Promise.all([loadBlockedDates(), loadTarifs()]);
+  await loadTarifs();
   await loadAvailability('duplex');
   setStatus('');
   renderCalendar();
