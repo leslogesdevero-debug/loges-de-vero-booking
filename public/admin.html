@@ -94,6 +94,8 @@
 
     <div id="blocked-container"></div>
 
+    <div id="promo-container"></div>
+
     <div id="seasons-container"></div>
 
     <div class="season-card">
@@ -164,6 +166,7 @@ function renderForm(){
   document.getElementById('open-until').value = fullTarifs.reservationsOuvertesJusquau || '';
 
   renderBlockedSection();
+  renderPromoSection();
 
   const container = document.getElementById('seasons-container');
   container.innerHTML = '';
@@ -224,6 +227,46 @@ function renderBlockedSection(){
     card.querySelector('.add-blocked-btn').addEventListener('click', () => addBlockedRow(list, '', '', ''));
     container.appendChild(card);
   }
+}
+
+function renderPromoSection(){
+  const container = document.getElementById('promo-container');
+  container.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'season-card';
+  card.id = 'promo-card';
+  card.innerHTML = `
+    <h2>Codes promo</h2>
+    <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Remise en % sur l'hébergement uniquement (ménage et taxe de séjour non concernés). Elle se cumule avec les remises longue durée et dernière minute. Les dates sont facultatives : sans date, le code n'a pas de limite.</p>
+    <div class="promo-list"></div>
+    <button type="button" class="add-promo-btn add-range-btn">+ Créer un code</button>
+  `;
+  const list = card.querySelector('.promo-list');
+  for(const p of (fullTarifs.codesPromo || [])) addPromoRow(list, p);
+  card.querySelector('.add-promo-btn').addEventListener('click', () => addPromoRow(list, { actif: true }));
+  container.appendChild(card);
+}
+
+function addPromoRow(container, p){
+  const row = document.createElement('div');
+  row.className = 'blocked-row promo-row';
+  row.innerHTML = `
+    <input type="text" class="promo-code" placeholder="CODE" style="text-transform:uppercase; max-width:130px;">
+    <input type="number" class="promo-pct" min="1" max="100" step="1" placeholder="%" style="width:70px; padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px;">
+    <span style="font-size:12px; color:var(--ink-soft);">du</span>
+    <input type="date" class="promo-debut">
+    <span style="font-size:12px; color:var(--ink-soft);">au</span>
+    <input type="date" class="promo-fin">
+    <label style="font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:4px;"><input type="checkbox" class="promo-actif"> actif</label>
+    <button type="button" class="remove-btn">×</button>
+  `;
+  row.querySelector('.promo-code').value = p.code || '';
+  row.querySelector('.promo-pct').value = p.pourcentage || '';
+  row.querySelector('.promo-debut').value = p.debut || '';
+  row.querySelector('.promo-fin').value = p.fin || '';
+  row.querySelector('.promo-actif').checked = p.actif !== false;
+  row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
+  container.appendChild(row);
 }
 
 function addBlockedRow(container, debut, fin, motif){
@@ -393,6 +436,28 @@ async function save(){
       });
     });
     fullTarifs.datesBloquees = datesBloquees;
+
+    const codesPromo = [];
+    const seenCodes = new Set();
+    document.querySelectorAll('#promo-card .promo-row').forEach(row => {
+      const code = row.querySelector('.promo-code').value.trim().toUpperCase();
+      const pctRaw = row.querySelector('.promo-pct').value;
+      const debut = row.querySelector('.promo-debut').value;
+      const fin = row.querySelector('.promo-fin').value;
+      const actif = row.querySelector('.promo-actif').checked;
+      if(!code && !pctRaw) return; // ligne vide, ignorée
+      const pct = Number(pctRaw);
+      if(!code) throw new Error('Un code promo n\'a pas de nom : renseignez le code ou supprimez la ligne.');
+      if(!(pct >= 1 && pct <= 100)) throw new Error(`Code ${code} : le pourcentage doit être compris entre 1 et 100.`);
+      if(debut && fin && debut > fin) throw new Error(`Code ${code} : la date de début est postérieure à la date de fin.`);
+      if(seenCodes.has(code)) throw new Error(`Le code ${code} apparaît deux fois.`);
+      seenCodes.add(code);
+      const entry = { code, pourcentage: pct, actif };
+      if(debut) entry.debut = debut;
+      if(fin) entry.fin = fin;
+      codesPromo.push(entry);
+    });
+    fullTarifs.codesPromo = codesPromo;
 
     const res = await fetch(ADMIN_API, {
       method: 'POST',
