@@ -1,6 +1,7 @@
 {
   "reservationsOuvertesJusquau": "2026-12-31",
   "datesBloquees": { "duplex": [], "rdc": [] },
+  "codesPromo": [],
   "duplex": {
     "nightlyDefault": 60,
     "saisons": [
