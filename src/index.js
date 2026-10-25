@@ -145,6 +145,22 @@ function getDiscountPercent(tarif, nights) {
   }
   return pct;
 }
+function findValidPromo(tarifs, rawCode) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  if (!code) return null;
+  const today = fmt(new Date());
+  for (const p of (tarifs.codesPromo || [])) {
+    if (String(p.code || '').trim().toUpperCase() !== code) continue;
+    if (p.actif === false) continue;
+    if (p.debut && today < p.debut) continue;
+    if (p.fin && today > p.fin) continue;
+    const pct = Number(p.pourcentage);
+    if (!(pct > 0)) continue;
+    return { code, pourcentage: Math.min(pct, 100) };
+  }
+  return null;
+}
+
 function getLastMinutePercent(tarif, checkin) {
   const rdm = tarif.remiseDerniereMinute;
   if (!rdm) return 0;
@@ -176,7 +192,7 @@ async function handleCheckout(request, env, origin) {
   const stripe = Stripe(env.STRIPE_SECRET_KEY);
 
   try {
-    const { property, checkin, checkout, adults, children, babies, guest } = await request.json();
+    const { property, checkin, checkout, adults, children, babies, guest, promoCode } = await request.json();
 
     if (!PROPERTY_NAMES[property]) {
       return new Response(JSON.stringify({ error: 'Logement inconnu.' }), { status: 400, headers });
@@ -237,7 +253,18 @@ async function handleCheckout(request, env, origin) {
     const subtotal = getAccommodationSubtotal(tarif, start, nights);
     const discountPct = getDiscountPercent(tarif, nights);
     const lastMinutePct = getLastMinutePercent(tarif, checkin);
-    const totalDiscountPct = discountPct + lastMinutePct;
+
+    // Code promo : s'il est renseigné mais invalide/expiré, on bloque plutôt
+    // que de facturer un montant différent de celui annoncé au client.
+    let promo = null;
+    if (promoCode && String(promoCode).trim()) {
+      promo = findValidPromo(tarifs, promoCode);
+      if (!promo) {
+        return new Response(JSON.stringify({ error: 'Code promo invalide ou expiré.' }), { status: 400, headers });
+      }
+    }
+    const promoPct = promo ? promo.pourcentage : 0;
+    const totalDiscountPct = Math.min(discountPct + lastMinutePct + promoPct, 100);
     const discountAmount = Math.round(subtotal * totalDiscountPct / 100 * 100) / 100;
     const accommodationCents = Math.round((subtotal - discountAmount) * 100);
     const cleaningFee = tarif.cleaningFee || 0;
@@ -262,7 +289,7 @@ async function handleCheckout(request, env, origin) {
       price_data: {
         currency: 'eur',
         unit_amount: chargeAccommodationCents,
-        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${depositMode ? ' — Acompte 30%' : ''}${totalDiscountPct ? ` — remise -${totalDiscountPct}% incluse` : ''}` }
+        product_data: { name: `${PROPERTY_NAMES[property]} — du ${checkin} au ${checkout} (${nights} nuit${nights > 1 ? 's' : ''})${depositMode ? ' — Acompte 30%' : ''}${totalDiscountPct ? ` — remise -${totalDiscountPct}% incluse` : ''}${promo ? ` (code ${promo.code})` : ''}` }
       },
       quantity: 1
     }];
@@ -326,7 +353,8 @@ async function handleCheckout(request, env, origin) {
       metadata: {
         property, checkin, checkout, nights: String(nights), adults: String(adultsCount), children: String(childrenCount), babies: String(babiesCount),
         prenom: g.prenom, nom: g.nom, adresse: g.adresse, codePostal: g.codePostal, ville: g.ville, pays: g.pays, telephone: g.telephone, email: g.email,
-        depositMode: String(depositMode), fullTotal: fullTotalTTC, remainingBalance: remainingBalanceTTC
+        depositMode: String(depositMode), fullTotal: fullTotalTTC, remainingBalance: remainingBalanceTTC,
+        ...(promo ? { promoCode: promo.code, promoPct: String(promo.pourcentage) } : {})
       }
     });
 
@@ -335,6 +363,7 @@ async function handleCheckout(request, env, origin) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Nouvelle pré-réservation — ${PROPERTY_NAMES[property]}`,
         `<p>Nouvelle demande, ${datesTxt}, pour ${occupantsTxt}.</p>
+         ${promo ? `<p>🏷️ Code promo utilisé : <strong>${promo.code}</strong> (−${promo.pourcentage}% sur l'hébergement).</p>` : ''}
          ${babiesCount > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${babiesCount} bébé${babiesCount > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          <p><strong>${g.prenom} ${g.nom}</strong><br>${g.adresse}<br>${g.codePostal} ${g.ville}<br>${g.pays}<br>Tél : ${g.telephone}<br>Email : ${g.email}</p>
          ${depositMode
@@ -423,6 +452,7 @@ async function handleStripeWebhook(request, env) {
     try {
       await sendEmail(env, OWNER_EMAIL, `Paiement confirmé — ${PROPERTY_NAMES[m.property] || m.property}`,
         `<p>Le paiement pour la réservation de <strong>${m.prenom} ${m.nom}</strong> (du ${m.checkin} au ${m.checkout}) a bien été validé.</p>
+         ${m.promoCode ? `<p>🏷️ Code promo utilisé : <strong>${m.promoCode}</strong> (−${m.promoPct}% sur l'hébergement).</p>` : ''}
          ${depositMode ? `<p><strong>Rappel : solde de ${m.remainingBalance} € à récupérer auprès du client au plus tard 30 jours avant son arrivée.</strong></p>` : ''}
          ${Number(m.babies) > 0 ? `<p><strong>🛏️ Prévoir le lit pliant (${m.babies} bébé${Number(m.babies) > 1 ? 's' : ''} de moins de 3 ans).</strong></p>` : ''}
          ${superhoteOk
@@ -471,6 +501,21 @@ async function sendBalanceReminders(env) {
   }
 }
 
+async function handleValidatePromo(request, env, origin) {
+  const headers = { ...corsHeaders(origin), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+  try {
+    const { code } = await request.json();
+    const tarifs = await getTarifs(env, request);
+    const promo = findValidPromo(tarifs, code);
+    if (!promo) {
+      return new Response(JSON.stringify({ valid: false }), { status: 200, headers });
+    }
+    return new Response(JSON.stringify({ valid: true, code: promo.code, pourcentage: promo.pourcentage }), { status: 200, headers });
+  } catch (err) {
+    return new Response(JSON.stringify({ valid: false, error: 'Erreur serveur.' }), { status: 500, headers });
+  }
+}
+
 function checkAdminPassword(request, env) {
   const provided = request.headers.get('X-Admin-Password') || '';
   return env.ADMIN_PASSWORD && provided === env.ADMIN_PASSWORD;
@@ -512,7 +557,7 @@ export default {
     const url = new URL(request.url);
     const origin = url.origin; // le widget est servi par ce même Worker : origine toujours autorisée
 
-    if (request.method === 'OPTIONS' && (url.pathname === '/create-checkout' || url.pathname === '/get-availability')) {
+    if (request.method === 'OPTIONS' && (url.pathname === '/create-checkout' || url.pathname === '/get-availability' || url.pathname === '/validate-promo')) {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
     if (url.pathname === '/get-availability' && request.method === 'GET') {
@@ -521,11 +566,16 @@ export default {
     if (url.pathname === '/create-checkout' && request.method === 'POST') {
       return handleCheckout(request, env, origin);
     }
+    if (url.pathname === '/validate-promo' && request.method === 'POST') {
+      return handleValidatePromo(request, env, origin);
+    }
     if (url.pathname === '/stripe-webhook' && request.method === 'POST') {
       return handleStripeWebhook(request, env);
     }
     if (url.pathname === '/tarifs.json' && request.method === 'GET') {
-      const tarifs = await getTarifs(env, request);
+      const allTarifs = await getTarifs(env, request);
+      // Les codes promo ne doivent jamais être visibles publiquement.
+      const { codesPromo, ...tarifs } = allTarifs;
       return new Response(JSON.stringify(tarifs), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
