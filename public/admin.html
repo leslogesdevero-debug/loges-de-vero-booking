@@ -26,7 +26,7 @@
 
   .season-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:18px;}
   .season-card h2{font-family:'Fraunces',serif; font-size:17px; margin:0 0 14px;}
-  .prices-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
+  .prices-row{display:grid; grid-template-columns:1fr 1fr 120px; gap:12px; margin-bottom:16px;}
   .price-field label{font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:4px;}
   .price-field .input-euro{display:flex; align-items:center; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
   .price-field .input-euro input{border:none; padding:9px 10px; font-size:14px; width:100%;}
@@ -72,35 +72,36 @@
 
   <div id="admin-view" class="hidden">
     <div class="default-card">
-      <h2>Tarif de base (par défaut)</h2>
-      <p>Utilisé pour toute date qui ne serait couverte par aucune des 3 saisons ci-dessous.</p>
+      <h2>Tarif de base (par défaut) & Séjour min.</h2>
+      <p>Utilisé pour toute date non couverte par les saisons ci-dessous.</p>
       <div class="prices-row">
         <div class="price-field">
-          <label>Le Duplex</label>
-          <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€/nuit</span></div>
+          <label>Duplex (€/nuit)</label>
+          <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€</span></div>
         </div>
         <div class="price-field">
-          <label>Le Rez-de-chaussée</label>
-          <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€/nuit</span></div>
+          <label>RDC (€/nuit)</label>
+          <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€</span></div>
+        </div>
+        <div class="price-field">
+          <label>Min. nuits (défaut)</label>
+          <div class="input-euro"><input type="number" id="default-min-nuits" min="1" max="30" step="1" value="1"><span>nuit</span></div>
         </div>
       </div>
     </div>
 
     <div class="default-card">
       <h2>Réservations ouvertes jusqu'au</h2>
-      <p>Aucune réservation ne sera possible au-delà de cette date. Pour ouvrir de nouvelles périodes (ex. le premier semestre 2027), reculez simplement cette date.</p>
       <input type="date" id="open-until" style="padding:9px 10px; border:1px solid var(--line); border-radius:4px; font-size:14px; width:100%;">
     </div>
 
     <div id="blocked-container"></div>
-
     <div id="promo-container"></div>
-
     <div id="seasons-container"></div>
 
     <div class="season-card">
-      <h2>Aperçu des tarifs par jour</h2>
-      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Se met à jour automatiquement selon ce que vous modifiez ci-dessus — pratique pour vérifier avant d'enregistrer.</p>
+      <h2>Aperçu du calendrier (Tarif & Min. nuits)</h2>
+      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Chaque case indique le prix et le nombre minimum de nuits requis.</p>
       <div class="tabs" style="display:flex; gap:8px; margin-bottom:14px;">
         <div class="preview-tab active" data-property="duplex" style="flex:1; padding:8px; text-align:center; border:1px solid var(--line); border-radius:6px; background:var(--river); color:#fff; cursor:pointer; font-size:13px; font-weight:600;">Le Duplex</div>
         <div class="preview-tab" data-property="rdc" style="flex:1; padding:8px; text-align:center; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink-soft); cursor:pointer; font-size:13px; font-weight:600;">Le Rez-de-chaussée</div>
@@ -113,11 +114,11 @@
       <div class="weekday-row" style="display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px;">
         <span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Lun</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Mar</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Mer</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Jeu</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Ven</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Sam</span><span style="text-align:center; font-size:11px; color:var(--ink-soft); font-weight:600;">Dim</span>
       </div>
-      <div id="preview-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:3px;"></div>
+      <div id="preview-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
     </div>
 
     <div class="save-bar">
-      <button class="save-btn" id="save-btn">Enregistrer les tarifs</button>
+      <button class="save-btn" id="save-btn">Enregistrer les tarifs & séjours min.</button>
       <div class="status-line" id="status-line"></div>
     </div>
   </div>
@@ -125,15 +126,13 @@
 
 <script>
 const ADMIN_API = '/admin/api/tarifs';
-const SEASON_NAMES = ['Haute saison', 'Moyenne saison', 'Basse saison'];
+// Pics & Événements en premier pour garantir la priorité d'affichage et de lecture
+const SEASON_NAMES = ['Pics & Événements', 'Haute saison', 'Moyenne saison', 'Basse saison'];
 const PROPERTIES = [{ key: 'duplex', label: 'Le Duplex' }, { key: 'rdc', label: 'Le Rez-de-chaussée' }];
 let password = '';
 let fullTarifs = null;
 
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
+function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 document.getElementById('login-btn').addEventListener('click', login);
 document.getElementById('password-input').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
@@ -144,10 +143,7 @@ async function login(){
   errEl.textContent = '';
   try{
     const res = await fetch(ADMIN_API, { headers: { 'X-Admin-Password': pwd } });
-    if(!res.ok){
-      errEl.textContent = 'Mot de passe incorrect.';
-      return;
-    }
+    if(!res.ok){ errEl.textContent = 'Mot de passe incorrect.'; return; }
     fullTarifs = await res.json();
     password = pwd;
     sessionStorage.setItem('admin-password', pwd);
@@ -156,13 +152,14 @@ async function login(){
     renderForm();
     renderPreview();
   }catch(e){
-    errEl.textContent = 'Erreur de connexion, réessayez.';
+    errEl.textContent = 'Erreur de connexion.';
   }
 }
 
 function renderForm(){
   document.getElementById('default-duplex').value = fullTarifs.duplex.nightlyDefault ?? '';
   document.getElementById('default-rdc').value = fullTarifs.rdc.nightlyDefault ?? '';
+  document.getElementById('default-min-nuits').value = fullTarifs.duplex.minNuitsDefault ?? 1;
   document.getElementById('open-until').value = fullTarifs.reservationsOuvertesJusquau || '';
 
   renderBlockedSection();
@@ -176,7 +173,7 @@ function renderForm(){
     const rdcSeasons = (fullTarifs.rdc.saisons || []).filter(s => s.nom === seasonName);
     const duplexPrice = duplexSeasons[0] ? duplexSeasons[0].nightly : '';
     const rdcPrice = rdcSeasons[0] ? rdcSeasons[0].nightly : '';
-    // Les périodes de dates sont partagées entre les deux logements
+    const minNuitsVal = duplexSeasons[0] ? (duplexSeasons[0].minNuits ?? 1) : (rdcSeasons[0] ? (rdcSeasons[0].minNuits ?? 1) : 1);
     const ranges = duplexSeasons.map(s => ({ debut: s.debut, fin: s.fin }));
 
     const card = document.createElement('div');
@@ -186,12 +183,16 @@ function renderForm(){
       <h2>${seasonName}</h2>
       <div class="prices-row">
         <div class="price-field">
-          <label>Le Duplex</label>
-          <div class="input-euro"><input type="number" class="price-duplex" min="0" step="1" value="${duplexPrice}"><span>€/nuit</span></div>
+          <label>Duplex (€/nuit)</label>
+          <div class="input-euro"><input type="number" class="price-duplex" min="0" step="1" value="${duplexPrice}"><span>€</span></div>
         </div>
         <div class="price-field">
-          <label>Le Rez-de-chaussée</label>
-          <div class="input-euro"><input type="number" class="price-rdc" min="0" step="1" value="${rdcPrice}"><span>€/nuit</span></div>
+          <label>RDC (€/nuit)</label>
+          <div class="input-euro"><input type="number" class="price-rdc" min="0" step="1" value="${rdcPrice}"><span>€</span></div>
+        </div>
+        <div class="price-field">
+          <label>Min. nuits</label>
+          <div class="input-euro"><input type="number" class="season-min-nuits" min="1" max="30" step="1" value="${minNuitsVal}"><span>nuit</span></div>
         </div>
       </div>
       <label style="font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Périodes de l'année concernées</label>
@@ -210,20 +211,17 @@ function renderBlockedSection(){
   const container = document.getElementById('blocked-container');
   container.innerHTML = '';
   const datesBloquees = fullTarifs.datesBloquees || {};
-
   for(const prop of PROPERTIES){
     const card = document.createElement('div');
     card.className = 'season-card';
     card.dataset.property = prop.key;
     card.innerHTML = `
       <h2>Périodes fermées — ${prop.label}</h2>
-      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Travaux, entretien... Ces dates seront indisponibles à la réservation.</p>
       <div class="blocked-list"></div>
       <button type="button" class="add-blocked-btn">+ Fermer une période</button>
     `;
     const list = card.querySelector('.blocked-list');
-    const ranges = datesBloquees[prop.key] || [];
-    for(const r of ranges) addBlockedRow(list, r.debut, r.fin, r.motif);
+    for(const r of (datesBloquees[prop.key] || [])) addBlockedRow(list, r.debut, r.fin, r.motif);
     card.querySelector('.add-blocked-btn').addEventListener('click', () => addBlockedRow(list, '', '', ''));
     container.appendChild(card);
   }
@@ -237,7 +235,6 @@ function renderPromoSection(){
   card.id = 'promo-card';
   card.innerHTML = `
     <h2>Codes promo</h2>
-    <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Remise en % sur l'hébergement uniquement (ménage et taxe de séjour non concernés). Elle se cumule avec les remises longue durée et dernière minute. Les dates sont facultatives : sans date, le code n'a pas de limite.</p>
     <div class="promo-list"></div>
     <button type="button" class="add-promo-btn add-range-btn">+ Créer un code</button>
   `;
@@ -251,20 +248,13 @@ function addPromoRow(container, p){
   const row = document.createElement('div');
   row.className = 'blocked-row promo-row';
   row.innerHTML = `
-    <input type="text" class="promo-code" placeholder="CODE" style="text-transform:uppercase; max-width:130px;">
-    <input type="number" class="promo-pct" min="1" max="100" step="1" placeholder="%" style="width:70px; padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px;">
-    <span style="font-size:12px; color:var(--ink-soft);">du</span>
-    <input type="date" class="promo-debut">
-    <span style="font-size:12px; color:var(--ink-soft);">au</span>
-    <input type="date" class="promo-fin">
-    <label style="font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:4px;"><input type="checkbox" class="promo-actif"> actif</label>
+    <input type="text" class="promo-code" placeholder="CODE" style="text-transform:uppercase; max-width:130px;" value="${p.code || ''}">
+    <input type="number" class="promo-pct" min="1" max="100" step="1" placeholder="%" style="width:70px; padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px;" value="${p.pourcentage || ''}">
+    <input type="date" class="promo-debut" value="${p.debut || ''}">
+    <input type="date" class="promo-fin" value="${p.fin || ''}">
+    <label style="font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:4px;"><input type="checkbox" class="promo-actif" ${p.actif !== false ? 'checked' : ''}> actif</label>
     <button type="button" class="remove-btn">×</button>
   `;
-  row.querySelector('.promo-code').value = p.code || '';
-  row.querySelector('.promo-pct').value = p.pourcentage || '';
-  row.querySelector('.promo-debut').value = p.debut || '';
-  row.querySelector('.promo-fin').value = p.fin || '';
-  row.querySelector('.promo-actif').checked = p.actif !== false;
   row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
   container.appendChild(row);
 }
@@ -274,9 +264,8 @@ function addBlockedRow(container, debut, fin, motif){
   row.className = 'blocked-row';
   row.innerHTML = `
     <input type="date" class="blocked-debut" value="${debut || ''}">
-    <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="blocked-fin" value="${fin || ''}">
-    <input type="text" class="blocked-motif" placeholder="Motif (ex. travaux)" value="${motif ? motif.replace(/"/g,'&quot;') : ''}">
+    <input type="text" class="blocked-motif" placeholder="Motif" value="${motif ? motif.replace(/"/g,'&quot;') : ''}">
     <button type="button" class="remove-btn">×</button>
   `;
   row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
@@ -288,7 +277,6 @@ function addRangeRow(container, debut, fin){
   row.className = 'range-row';
   row.innerHTML = `
     <input type="date" class="range-debut" value="${debut}">
-    <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="range-fin" value="${fin}">
     <button type="button" class="remove-btn">×</button>
   `;
@@ -300,37 +288,208 @@ const FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','a
 let previewProperty = 'duplex';
 let previewView = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-
 function collectCurrentSeasonsFromForm(propertyKey){
   const priceField = propertyKey === 'duplex' ? 'price-duplex' : 'price-rdc';
   const defaultField = propertyKey === 'duplex' ? 'default-duplex' : 'default-rdc';
   const nightlyDefault = Number(document.getElementById(defaultField).value) || 0;
+  const minNuitsDefault = Number(document.getElementById('default-min-nuits').value) || 1;
   const saisons = [];
   document.querySelectorAll('#seasons-container .season-card').forEach(card => {
     const seasonName = card.dataset.season;
     const priceVal = card.querySelector('.' + priceField).value;
+    const minNuitsVal = Number(card.querySelector('.season-min-nuits').value) || 1;
     if(priceVal === '') return;
     const nightly = Number(priceVal);
     card.querySelectorAll('.range-row').forEach(row => {
       const debut = row.querySelector('.range-debut').value;
       const fin = row.querySelector('.range-fin').value;
       if(!debut || !fin) return;
-      saisons.push({ nom: seasonName, debut, fin, nightly });
+      saisons.push({ nom: seasonName, debut, fin, nightly, minNuits: minNuitsVal });
     });
   });
-  return { nightlyDefault, saisons };
+  return { nightlyDefault, minNuitsDefault, saisons };
 }
 
-function getNightlyRateFromForm(tarifLive, dateStr){
-  for(const s of tarifLive.saisons){
-    if(dateStr >= s.debut && dateStr <= s.fin) return s.nightly;
+// Logique de priorité : "Pics & Événements" ou période la plus courte en cas de chevauchement
+function getSeasonDataForDate(tarifLive, dateStr){
+  const matching = tarifLive.saisons.filter(s => dateStr >= s.debut && dateStr <= s.fin);
+  if(matching.length === 0){
+    return { nightly: tarifLive.nightlyDefault, minNuits: tarifLive.minNuitsDefault || 1 };
   }
-  return tarifLive.nightlyDefault;
+  const eventSeason = matching.find(s => s.nom === 'Pics & Événements');
+  if(eventSeason) return eventSeason;
+
+  matching.sort((a, b) => (new Date(a.fin) - new Date(a.debut)) - (new Date(b.fin) - new Date(b.debut)));
+  return matching[0];
 }
 
 function renderPreview(){
   const tarifLive = collectCurrentSeasonsFromForm(previewProperty);
+  document.getElementById('preview-month-label').textContent = FR_MONTHS[previewView.getMonth()] + ' ' + previewView.getFullYear();
+  const grid = document.getElementById('preview-grid');
+  grid.innerHTML = '';
+
+  const year = previewView.getFullYear(), month = previewView.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const offset = (firstDay.getDay()+6)%7;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  for(let i=0;i<offset;i++){ grid.appendChild(document.createElement('div')); }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const dStr = fmtDate(d);
+    const seasonData = getSeasonDataForDate(tarifLive, dStr);
+    
+    const cell = document.createElement('div');
+    cell.style.cssText = 'aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; border-radius:4px; background:var(--forest-soft); color:var(--forest); border:1px solid #d4e0cd; padding:2px;';
+    cell.innerHTML = `
+      <span style="font-weight:700; font-size:11px;">${day}</span>
+      <span style="font-weight:600;">${seasonData.nightly}€</span>
+      <span style="font-size:9px; color:var(--ink-soft);">${seasonData.minNuits}n min</span>
+    `;
+    grid.appendChild(cell);
+  }
+}
+
+document.getElementById('preview-prev').addEventListener('click', () => {
+  previewView = new Date(previewView.getFullYear(), previewView.getMonth()-1, 1);
+  renderPreview();
+});
+document.getElementById('preview-next').addEventListener('click', () => {
+  previewView = new Date(previewView.getFullYear(), previewView.getMonth()+1, 1);
+  renderPreview();
+});
+document.querySelectorAll('.preview-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.preview-tab').forEach(t => {
+      t.classList.remove('active');
+      t.style.background = '#fff';
+      t.style.color = 'var(--ink-soft)';
+    });
+    tab.classList.add('active');
+    tab.style.background = 'var(--river)';
+    tab.style.color = '#fff';
+    previewProperty = tab.dataset.property;
+    renderPreview();
+  });
+});
+
+document.getElementById('seasons-container').addEventListener('input', renderPreview);
+document.getElementById('default-duplex').addEventListener('input', renderPreview);
+document.getElementById('default-rdc').addEventListener('input', renderPreview);
+document.getElementById('default-min-nuits').addEventListener('input', renderPreview);
+document.getElementById('seasons-container').addEventListener('click', e => {
+  if(e.target.classList.contains('remove-btn') || e.target.classList.contains('add-range-btn')) setTimeout(renderPreview, 0);
+});
+
+document.getElementById('save-btn').addEventListener('click', save);
+
+async function save(){
+  const btn = document.getElementById('save-btn');
+  const statusEl = document.getElementById('status-line');
+  btn.disabled = true;
+  statusEl.textContent = '';
+  statusEl.className = 'status-line';
+
+  try{
+    const defaultDuplex = Number(document.getElementById('default-duplex').value);
+    const defaultRdc = Number(document.getElementById('default-rdc').value);
+    const defaultMinNuits = Number(document.getElementById('default-min-nuits').value) || 1;
+
+    const duplexSeasons = [];
+    const rdcSeasons = [];
+
+    document.querySelectorAll('.season-card').forEach(card => {
+      if(!card.dataset.season) return;
+      const seasonName = card.dataset.season;
+      const priceDuplex = Number(card.querySelector('.price-duplex').value);
+      const priceRdc = Number(card.querySelector('.price-rdc').value);
+      const minNuits = Number(card.querySelector('.season-min-nuits').value) || 1;
+      
+      card.querySelectorAll('.range-row').forEach(row => {
+        const debut = row.querySelector('.range-debut').value;
+        const fin = row.querySelector('.range-fin').value;
+        if(!debut || !fin) return;
+        if(priceDuplex) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex, minNuits });
+        if(priceRdc) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc, minNuits });
+      });
+    });
+
+    fullTarifs.duplex.nightlyDefault = defaultDuplex;
+    fullTarifs.duplex.minNuitsDefault = defaultMinNuits;
+    fullTarifs.duplex.saisons = duplexSeasons;
+
+    fullTarifs.rdc.nightlyDefault = defaultRdc;
+    fullTarifs.rdc.minNuitsDefault = defaultMinNuits;
+    fullTarifs.rdc.saisons = rdcSeasons;
+
+    const openUntil = document.getElementById('open-until').value;
+    if(openUntil) fullTarifs.reservationsOuvertesJusquau = openUntil;
+
+    const datesBloquees = { duplex: [], rdc: [] };
+    document.querySelectorAll('#blocked-container .season-card').forEach(card => {
+      const prop = card.dataset.property;
+      card.querySelectorAll('.blocked-row').forEach(row => {
+        const debut = row.querySelector('.blocked-debut').value;
+        const fin = row.querySelector('.blocked-fin').value;
+        const motif = row.querySelector('.blocked-motif').value;
+        if(!debut || !fin) return;
+        datesBloquees[prop].push({ debut, fin, motif: motif || '' });
+      });
+    });
+    fullTarifs.datesBloquees = datesBloquees;
+
+    const codesPromo = [];
+    const seenCodes = new Set();
+    document.querySelectorAll('#promo-card .promo-row').forEach(row => {
+      const code = row.querySelector('.promo-code').value.trim().toUpperCase();
+      const pctRaw = row.querySelector('.promo-pct').value;
+      const debut = row.querySelector('.promo-debut').value;
+      const fin = row.querySelector('.promo-fin').value;
+      const actif = row.querySelector('.promo-actif').checked;
+      if(!code && !pctRaw) return;
+      const pct = Number(pctRaw);
+      if(!code) throw new Error('Un code promo n\'a pas de nom.');
+      if(!(pct >= 1 && pct <= 100)) throw new Error(`Code ${code} : pourcentage invalide.`);
+      if(debut && fin && debut > fin) throw new Error(`Code ${code} : dates inversées.`);
+      if(seenCodes.has(code)) throw new Error(`Code ${code} en double.`);
+      seenCodes.add(code);
+      const entry = { code, pourcentage: pct, actif };
+      if(debut) entry.debut = debut;
+      if(fin) entry.fin = fin;
+      codesPromo.push(entry);
+    });
+    fullTarifs.codesPromo = codesPromo;
+
+    const res = await fetch(ADMIN_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify(fullTarifs)
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Erreur lors de la sauvegarde.');
+
+    statusEl.textContent = 'Tarifs et durées minimales enregistrés.';
+    statusEl.classList.add('ok');
+  }catch(e){
+    statusEl.textContent = e.message;
+    statusEl.classList.add('error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+(function init(){
+  const saved = sessionStorage.getItem('admin-password');
+  if(saved){
+    document.getElementById('password-input').value = saved;
+    login();
+  }
+})();
+</script>
+</body>
+</html>
   document.getElementById('preview-month-label').textContent = FR_MONTHS[previewView.getMonth()] + ' ' + previewView.getFullYear();
   const grid = document.getElementById('preview-grid');
   grid.innerHTML = '';
