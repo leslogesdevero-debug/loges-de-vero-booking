@@ -370,7 +370,7 @@ function onDayClick(d, dStr, isBookedDay){
 
   if(!selection.checkin || (selection.checkin && selection.checkout)){
     if(isBookedDay){
-      setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.', true);
+      setStatus("Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.", true);
       return;
     }
     selection = { checkin: dStr, checkout: null };
@@ -379,7 +379,7 @@ function onDayClick(d, dStr, isBookedDay){
   } else {
     if(dStr <= selection.checkin){
       if(isBookedDay){
-        setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.', true);
+        setStatus("Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.", true);
         return;
       }
       selection = { checkin: dStr, checkout: null };
