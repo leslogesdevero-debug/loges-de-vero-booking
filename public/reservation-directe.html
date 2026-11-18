@@ -226,9 +226,7 @@
 
 <script>
 // ====================== CONFIGURATION À COMPLÉTER ======================
-// URL de votre projet Cloudflare Pages une fois déployé (voir README.md)
 const FUNCTION_ENDPOINT = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/create-checkout';
-// Fichier de tarifs, hébergé sur le même projet Cloudflare Pages
 const TARIFS_URL = 'https://loges-de-vero-booking.leslogesdevero.workers.dev/tarifs.json';
 // =========================================================================
 
@@ -248,7 +246,7 @@ let selection = { checkin: null, checkout: null };
 let adults = 2;
 let children = 0;
 let babies = 0;
-let promo = null; // { code, pourcentage } une fois un code validé par le serveur
+let promo = null; // { code, pourcentage }
 
 function fmt(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -289,6 +287,38 @@ function getMaxDateStr(){
   return (tarifs && tarifs.reservationsOuvertesJusquau) || '2099-12-31';
 }
 
+// Récupère la saison applicable à une date (Pics & Événements prioritaire, sinon période la plus courte)
+function getSeasonDataForDate(t, dateStr){
+  if(!t) return { nightly: 0, minNuits: 1 };
+  const matching = (t.saisons || []).filter(s => dateStr >= s.debut && dateStr <= s.fin);
+  if(matching.length === 0){
+    return { nightly: t.nightlyDefault, minNuits: t.minNuitsDefault || t.minNights || 1 };
+  }
+  const eventSeason = matching.find(s => s.nom === 'Pics & Événements');
+  if(eventSeason) return eventSeason;
+
+  matching.sort((a, b) => (new Date(a.fin) - new Date(a.debut)) - (new Date(b.fin) - new Date(b.debut)));
+  return matching[0];
+}
+
+// Calcule le nombre minimum de nuits requis pour un séjour donné (le max des minNuits sur les nuits du séjour)
+function getRequiredMinNights(t, checkinStr, checkoutStr){
+  if(!t) return 1;
+  let required = t.minNuitsDefault || t.minNights || 1;
+  if(!checkoutStr){
+    const s = getSeasonDataForDate(t, checkinStr);
+    return Math.max(required, s.minNuits || 1);
+  }
+  const d = new Date(checkinStr + 'T00:00:00');
+  const end = new Date(checkoutStr + 'T00:00:00');
+  while(d < end){
+    const s = getSeasonDataForDate(t, fmt(d));
+    if(s.minNuits && s.minNuits > required) required = s.minNuits;
+    d.setDate(d.getDate() + 1);
+  }
+  return required;
+}
+
 function renderCalendar(){
   document.getElementById('month-label').textContent = FR_MONTHS[view.getMonth()] + ' ' + view.getFullYear();
   const grid = document.getElementById('day-grid');
@@ -298,6 +328,7 @@ function renderCalendar(){
   const offset = (firstDay.getDay()+6)%7;
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const maxDateStr = getMaxDateStr();
+  const t = tarifs ? tarifs[currentProp] : null;
 
   for(let i=0;i<offset;i++){ const c=document.createElement('div'); c.className='day-cell empty'; grid.appendChild(c); }
 
@@ -317,7 +348,13 @@ function renderCalendar(){
     if(!isPast){
       if(selection.checkin === dStr || selection.checkout === dStr) cls += ' selected-edge';
       else if(selection.checkin && selection.checkout && dStr > selection.checkin && dStr < selection.checkout) cls += ' selected-range';
-      else if(selection.checkin && !selection.checkout && dStr > selection.checkin && !hasBookedBetween(new Date(selection.checkin), d)) cls += ' possible-checkout';
+      else if(selection.checkin && !selection.checkout && dStr > selection.checkin && !hasBookedBetween(new Date(selection.checkin), d)){
+        const nightsCandidate = Math.round((d - new Date(selection.checkin + 'T00:00:00')) / 86400000);
+        const minReq = getRequiredMinNights(t, selection.checkin, dStr);
+        if(nightsCandidate >= minReq){
+          cls += ' possible-checkout';
+        }
+      }
       cell.addEventListener('click', () => onDayClick(d, dStr, isBooked));
     }
     cell.className = cls;
@@ -329,27 +366,35 @@ function renderCalendar(){
 }
 
 function onDayClick(d, dStr, isBookedDay){
+  const t = tarifs ? tarifs[currentProp] : null;
+
   if(!selection.checkin || (selection.checkin && selection.checkout)){
-    // Nouvelle sélection : la nuit d'arrivée doit être libre.
     if(isBookedDay){
-      setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d\'arrivée libre.', true);
+      setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.', true);
       return;
     }
     selection = { checkin: dStr, checkout: null };
-    setStatus('');
+    const minReq = getRequiredMinNights(t, dStr, null);
+    setStatus(minReq > 1 ? `Séjour minimum de ${minReq} nuits à partir de cette date.` : '');
   } else {
     if(dStr <= selection.checkin){
       if(isBookedDay){
-        setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d\'arrivée libre.', true);
+        setStatus('Cette date est déjà occupée cette nuit-là — choisissez une date d'arrivée libre.', true);
         return;
       }
       selection = { checkin: dStr, checkout: null };
+      const minReq = getRequiredMinNights(t, dStr, null);
+      setStatus(minReq > 1 ? `Séjour minimum de ${minReq} nuits à partir de cette date.` : '');
     } else if(hasBookedBetween(new Date(selection.checkin), d)){
-      // Le départ (jour J, exclusif) peut coïncider avec l'arrivée d'un autre client le même jour J.
-      // Seules les nuits strictement avant J comptent — si l'une d'elles est occupée, la période ne convient pas.
       setStatus('Une nuit réservée se trouve dans cette période — choisissez un autre départ.', true);
       selection = isBookedDay ? { checkin: null, checkout: null } : { checkin: dStr, checkout: null };
     } else {
+      const nights = Math.round((d - new Date(selection.checkin + 'T00:00:00')) / 86400000);
+      const minReq = getRequiredMinNights(t, selection.checkin, dStr);
+      if(nights < minReq){
+        setStatus(`Séjour minimum de ${minReq} nuits requis sur cette période (vous avez sélectionné ${nights} nuit${nights>1?'s':''}).`, true);
+        return;
+      }
       selection.checkout = dStr;
       setStatus('');
     }
@@ -389,12 +434,7 @@ function getGuestInfo(){
 document.getElementById('guest-form').addEventListener('input', updateSummary);
 
 function getNightlyRate(t, dateStr){
-  if(t.saisons){
-    for(const s of t.saisons){
-      if(dateStr >= s.debut && dateStr <= s.fin) return s.nightly;
-    }
-  }
-  return t.nightlyDefault;
+  return getSeasonDataForDate(t, dateStr).nightly;
 }
 
 function getAccommodationSubtotal(t, checkinStr, nights){
@@ -435,6 +475,7 @@ function updateSummary(){
 
   if(!selection.checkin || !selection.checkout || !tarifs){
     placeholder.style.display = 'block';
+    placeholder.textContent = "Cliquez une date d'arrivée : les départs possibles s'afficheront entourés.";
     details.style.display = 'none';
     document.getElementById('guest-form').classList.remove('visible');
     btn.disabled = true;
@@ -455,9 +496,10 @@ function updateSummary(){
     return;
   }
 
-  if(t && nights < (t.minNights || 1)){
+  const minRequired = getRequiredMinNights(t, selection.checkin, selection.checkout);
+  if(t && nights < minRequired){
     placeholder.style.display = 'block';
-    placeholder.textContent = `Séjour minimum de ${t.minNights} nuits pour ce logement.`;
+    placeholder.textContent = `Séjour minimum de ${minRequired} nuits requis pour cette période.`;
     details.style.display = 'none';
     document.getElementById('guest-form').classList.remove('visible');
     btn.disabled = true;
@@ -477,7 +519,6 @@ function updateSummary(){
   const discountAmount = Math.round(subtotal * discountPct / 100 * 100) / 100;
   const lastMinuteAmount = Math.round(subtotal * lastMinutePct / 100 * 100) / 100;
   const promoAmount = Math.round(subtotal * promoPct / 100 * 100) / 100;
-  // Même méthode de calcul que le serveur : une seule remise cumulée, arrondie une fois.
   const combinedDiscount = Math.round(subtotal * totalDiscountPct / 100 * 100) / 100;
   const accommodation = Math.round((subtotal - combinedDiscount) * 100) / 100;
   const cleaning = t ? (t.cleaningFee || 0) : 0;
@@ -508,7 +549,6 @@ function updateSummary(){
     ? `<span>Acompte à régler maintenant (30% du total)</span><span>${amountDueNow.toFixed(2)} €</span>` : '';
   document.getElementById('row-balance-note').textContent = depositMode
     ? `Solde restant de ${remainingBalance.toFixed(2)} € à régler au plus tard 30 jours avant votre arrivée — nous vous recontacterons.` : '';
-
 
   btn.disabled = !isGuestFormValid();
   btn.textContent = isGuestFormValid() ? `Réserver et payer ${depositMode ? "l'acompte de " : ''}${amountDueNow.toFixed(2)} €` : 'Complétez vos coordonnées';
@@ -576,7 +616,6 @@ document.getElementById('promo-btn').addEventListener('click', async () => {
   updateSummary();
 });
 
-// Si le texte est modifié après application, le code n'est plus considéré comme appliqué.
 document.getElementById('promo-input').addEventListener('input', () => {
   const typed = document.getElementById('promo-input').value.trim().toUpperCase();
   if(promo && typed !== promo.code){
@@ -636,3 +675,4 @@ document.querySelectorAll('.tab').forEach(tab => {
 </script>
 </body>
 </html>
+
