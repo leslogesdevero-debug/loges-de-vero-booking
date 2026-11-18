@@ -1,120 +1,283 @@
 {
-  "reservationsOuvertesJusquau": "2026-12-31",
-  "datesBloquees": { "duplex": [], "rdc": [] },
+  "reservationsOuvertesJusquau": "2027-12-31",
+  "datesBloquees": {
+    "duplex": [],
+    "rdc": []
+  },
   "codesPromo": [],
   "duplex": {
-    "nightlyDefault": 60,
+    "nightlyDefault": 48,
+    "minNuitsDefault": 1,
     "saisons": [
       {
         "nom": "Basse saison",
-        "debut": "2026-01-01",
-        "fin": "2026-03-31",
-        "nightly": 60
+        "debut": "2027-01-04",
+        "fin": "2027-02-12",
+        "nightly": 48,
+        "minNuits": 1
       },
       {
         "nom": "Moyenne saison",
-        "debut": "2026-04-01",
-        "fin": "2026-06-30",
-        "nightly": 76
-      },
-      {
-        "nom": "Haute saison",
-        "debut": "2026-07-01",
-        "fin": "2026-08-31",
-        "nightly": 85
-      },
-      {
-        "nom": "Moyenne saison",
-        "debut": "2026-09-01",
-        "fin": "2026-10-31",
-        "nightly": 76
+        "debut": "2027-02-13",
+        "fin": "2027-03-07",
+        "nightly": 55,
+        "minNuits": 1
       },
       {
         "nom": "Basse saison",
-        "debut": "2026-11-01",
-        "fin": "2026-12-31",
-        "nightly": 60
+        "debut": "2027-03-08",
+        "fin": "2027-04-02",
+        "nightly": 48,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-04-03",
+        "fin": "2027-05-17",
+        "nightly": 65,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-05-18",
+        "fin": "2027-06-25",
+        "nightly": 55,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-06-26",
+        "fin": "2027-08-29",
+        "nightly": 65,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-08-30",
+        "fin": "2027-09-30",
+        "nightly": 55,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-10-01",
+        "fin": "2027-11-01",
+        "nightly": 65,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-11-02",
+        "fin": "2027-11-10",
+        "nightly": 55,
+        "minNuits": 1
+      },
+      {
+        "nom": "Basse saison",
+        "debut": "2027-11-11",
+        "fin": "2027-12-17",
+        "nightly": 48,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-12-18",
+        "fin": "2028-01-02",
+        "nightly": 65,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-03-19",
+        "fin": "2027-03-20",
+        "nightly": 85,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-03-27",
+        "fin": "2027-03-28",
+        "nightly": 85,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-05-05",
+        "fin": "2027-05-08",
+        "nightly": 95,
+        "minNuits": 3
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-05-14",
+        "fin": "2027-05-16",
+        "nightly": 95,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-06-26",
+        "fin": "2027-07-31",
+        "nightly": 95,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-11-10",
+        "fin": "2027-11-13",
+        "nightly": 110,
+        "minNuits": 3
       }
     ],
     "remises": [
-      {
-        "minNuits": 7,
-        "pourcentage": 5
-      },
-      {
-        "minNuits": 14,
-        "pourcentage": 10
-      },
-      {
-        "minNuits": 28,
-        "pourcentage": 15
-      }
+      { "minNuits": 7, "pourcentage": 10 },
+      { "minNuits": 14, "pourcentage": 15 },
+      { "minNuits": 28, "pourcentage": 20 }
     ],
     "remiseDerniereMinute": {
-      "seuilHeures": 48,
-      "pourcentage": 10
+      "seuilHeures": 168,
+      "pourcentage": 15
     },
     "cleaningFee": 48,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
-    "minNights": 1,
     "maxGuests": 4,
     "taxeSejourParAdulteParNuit": 1.1
   },
   "rdc": {
-    "nightlyDefault": 80,
+    "nightlyDefault": 65,
+    "minNuitsDefault": 1,
     "saisons": [
       {
         "nom": "Basse saison",
-        "debut": "2026-01-01",
-        "fin": "2026-03-31",
-        "nightly": 80
+        "debut": "2027-01-04",
+        "fin": "2027-02-12",
+        "nightly": 65,
+        "minNuits": 1
       },
       {
         "nom": "Moyenne saison",
-        "debut": "2026-04-01",
-        "fin": "2026-06-30",
-        "nightly": 100
-      },
-      {
-        "nom": "Haute saison",
-        "debut": "2026-07-01",
-        "fin": "2026-08-31",
-        "nightly": 115
-      },
-      {
-        "nom": "Moyenne saison",
-        "debut": "2026-09-01",
-        "fin": "2026-10-31",
-        "nightly": 100
+        "debut": "2027-02-13",
+        "fin": "2027-03-07",
+        "nightly": 75,
+        "minNuits": 1
       },
       {
         "nom": "Basse saison",
-        "debut": "2026-11-01",
-        "fin": "2026-12-31",
-        "nightly": 80
+        "debut": "2027-03-08",
+        "fin": "2027-04-02",
+        "nightly": 65,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-04-03",
+        "fin": "2027-05-17",
+        "nightly": 90,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-05-18",
+        "fin": "2027-06-25",
+        "nightly": 75,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-06-26",
+        "fin": "2027-08-29",
+        "nightly": 90,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-08-30",
+        "fin": "2027-09-30",
+        "nightly": 75,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-10-01",
+        "fin": "2027-11-01",
+        "nightly": 90,
+        "minNuits": 2
+      },
+      {
+        "nom": "Moyenne saison",
+        "debut": "2027-11-02",
+        "fin": "2027-11-10",
+        "nightly": 75,
+        "minNuits": 1
+      },
+      {
+        "nom": "Basse saison",
+        "debut": "2027-11-11",
+        "fin": "2027-12-17",
+        "nightly": 65,
+        "minNuits": 1
+      },
+      {
+        "nom": "Haute saison",
+        "debut": "2027-12-18",
+        "fin": "2028-01-02",
+        "nightly": 90,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-03-19",
+        "fin": "2027-03-20",
+        "nightly": 115,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-03-27",
+        "fin": "2027-03-28",
+        "nightly": 115,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-05-05",
+        "fin": "2027-05-08",
+        "nightly": 130,
+        "minNuits": 3
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-05-14",
+        "fin": "2027-05-16",
+        "nightly": 130,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-06-26",
+        "fin": "2027-07-31",
+        "nightly": 130,
+        "minNuits": 2
+      },
+      {
+        "nom": "Pics & Événements",
+        "debut": "2027-11-10",
+        "fin": "2027-11-13",
+        "nightly": 145,
+        "minNuits": 3
       }
     ],
     "remises": [
-      {
-        "minNuits": 7,
-        "pourcentage": 5
-      },
-      {
-        "minNuits": 14,
-        "pourcentage": 10
-      },
-      {
-        "minNuits": 28,
-        "pourcentage": 15
-      }
+      { "minNuits": 7, "pourcentage": 10 },
+      { "minNuits": 14, "pourcentage": 15 },
+      { "minNuits": 28, "pourcentage": 20 }
     ],
     "remiseDerniereMinute": {
-      "seuilHeures": 48,
-      "pourcentage": 10
+      "seuilHeures": 168,
+      "pourcentage": 15
     },
     "cleaningFee": 60,
     "cleaningFeeDetail": "ménage de fin de séjour, serviettes de toilette et linge de lit fournis",
-    "minNights": 1,
     "maxGuests": 6,
     "taxeSejourParAdulteParNuit": 1.1
   }
