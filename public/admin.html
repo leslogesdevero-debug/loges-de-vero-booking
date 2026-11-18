@@ -26,14 +26,18 @@
 
   .season-card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:18px;}
   .season-card h2{font-family:'Fraunces',serif; font-size:17px; margin:0 0 14px;}
-  .prices-row{display:grid; grid-template-columns:1fr 1fr 120px; gap:12px; margin-bottom:16px;}
+  .prices-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
+  .prices-row.three-cols{grid-template-columns:1fr 1fr 130px;}
   .price-field label{font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:4px;}
   .price-field .input-euro{display:flex; align-items:center; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
   .price-field .input-euro input{border:none; padding:9px 10px; font-size:14px; width:100%;}
   .price-field .input-euro span{padding:0 10px; color:var(--ink-soft); background:var(--limestone); align-self:stretch; display:flex; align-items:center; font-size:13px;}
 
-  .range-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .range-row input[type="date"]{padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px; flex:1;}
+  .range-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .range-row input[type="date"]{padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px; flex:1; min-width:130px;}
+  .range-min-wrap{display:flex; align-items:center; border:1px solid var(--line); border-radius:4px; overflow:hidden; width:105px; flex-shrink:0;}
+  .range-min-wrap input{border:none; padding:7px 6px; font-size:13px; width:100%; text-align:center;}
+  .range-min-wrap span{padding:0 8px; font-size:12px; color:var(--ink-soft); background:var(--limestone); align-self:stretch; display:flex; align-items:center;}
   .range-row .remove-btn{background:none; border:1px solid var(--line); border-radius:4px; width:28px; height:28px; color:var(--brick); cursor:pointer; font-size:15px; flex-shrink:0;}
   .add-range-btn{background:none; border:1px dashed var(--line); border-radius:4px; padding:7px 12px; font-size:12px; color:var(--river); cursor:pointer; margin-top:4px;}
 
@@ -73,18 +77,18 @@
   <div id="admin-view" class="hidden">
     <div class="default-card">
       <h2>Tarif de base (par défaut) & Séjour min.</h2>
-      <p>Utilisé pour toute date non couverte par les saisons ci-dessous.</p>
-      <div class="prices-row">
+      <p>Utilisé pour toute date qui ne serait couverte par aucune des périodes ci-dessous.</p>
+      <div class="prices-row three-cols">
         <div class="price-field">
-          <label>Duplex (€/nuit)</label>
-          <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€</span></div>
+          <label>Le Duplex</label>
+          <div class="input-euro"><input type="number" id="default-duplex" min="0" step="1"><span>€/nuit</span></div>
         </div>
         <div class="price-field">
-          <label>RDC (€/nuit)</label>
-          <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€</span></div>
+          <label>Le Rez-de-chaussée</label>
+          <div class="input-euro"><input type="number" id="default-rdc" min="0" step="1"><span>€/nuit</span></div>
         </div>
         <div class="price-field">
-          <label>Min. nuits (défaut)</label>
+          <label>Min. nuits défaut</label>
           <div class="input-euro"><input type="number" id="default-min-nuits" min="1" max="30" step="1" value="1"><span>nuit</span></div>
         </div>
       </div>
@@ -92,6 +96,7 @@
 
     <div class="default-card">
       <h2>Réservations ouvertes jusqu'au</h2>
+      <p>Aucune réservation ne sera possible au-delà de cette date.</p>
       <input type="date" id="open-until" style="padding:9px 10px; border:1px solid var(--line); border-radius:4px; font-size:14px; width:100%;">
     </div>
 
@@ -100,8 +105,8 @@
     <div id="seasons-container"></div>
 
     <div class="season-card">
-      <h2>Aperçu du calendrier (Tarif & Min. nuits)</h2>
-      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Chaque case indique le prix et le nombre minimum de nuits requis.</p>
+      <h2>Aperçu des tarifs & séjours min. par jour</h2>
+      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Se met à jour automatiquement selon vos modifications ci-dessus.</p>
       <div class="tabs" style="display:flex; gap:8px; margin-bottom:14px;">
         <div class="preview-tab active" data-property="duplex" style="flex:1; padding:8px; text-align:center; border:1px solid var(--line); border-radius:6px; background:var(--river); color:#fff; cursor:pointer; font-size:13px; font-weight:600;">Le Duplex</div>
         <div class="preview-tab" data-property="rdc" style="flex:1; padding:8px; text-align:center; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink-soft); cursor:pointer; font-size:13px; font-weight:600;">Le Rez-de-chaussée</div>
@@ -126,7 +131,6 @@
 
 <script>
 const ADMIN_API = '/admin/api/tarifs';
-// Pics & Événements en premier pour garantir la priorité d'affichage et de lecture
 const SEASON_NAMES = ['Pics & Événements', 'Haute saison', 'Moyenne saison', 'Basse saison'];
 const PROPERTIES = [{ key: 'duplex', label: 'Le Duplex' }, { key: 'rdc', label: 'Le Rez-de-chaussée' }];
 let password = '';
@@ -152,14 +156,14 @@ async function login(){
     renderForm();
     renderPreview();
   }catch(e){
-    errEl.textContent = 'Erreur de connexion.';
+    errEl.textContent = 'Erreur de connexion, réessayez.';
   }
 }
 
 function renderForm(){
   document.getElementById('default-duplex').value = fullTarifs.duplex.nightlyDefault ?? '';
   document.getElementById('default-rdc').value = fullTarifs.rdc.nightlyDefault ?? '';
-  document.getElementById('default-min-nuits').value = fullTarifs.duplex.minNuitsDefault ?? 1;
+  document.getElementById('default-min-nuits').value = fullTarifs.duplex.minNuitsDefault ?? fullTarifs.rdc.minNuitsDefault ?? 1;
   document.getElementById('open-until').value = fullTarifs.reservationsOuvertesJusquau || '';
 
   renderBlockedSection();
@@ -173,8 +177,7 @@ function renderForm(){
     const rdcSeasons = (fullTarifs.rdc.saisons || []).filter(s => s.nom === seasonName);
     const duplexPrice = duplexSeasons[0] ? duplexSeasons[0].nightly : '';
     const rdcPrice = rdcSeasons[0] ? rdcSeasons[0].nightly : '';
-    const minNuitsVal = duplexSeasons[0] ? (duplexSeasons[0].minNuits ?? 1) : (rdcSeasons[0] ? (rdcSeasons[0].minNuits ?? 1) : 1);
-    const ranges = duplexSeasons.map(s => ({ debut: s.debut, fin: s.fin }));
+    const ranges = duplexSeasons.map(s => ({ debut: s.debut, fin: s.fin, minNuits: s.minNuits ?? 1 }));
 
     const card = document.createElement('div');
     card.className = 'season-card';
@@ -183,26 +186,22 @@ function renderForm(){
       <h2>${seasonName}</h2>
       <div class="prices-row">
         <div class="price-field">
-          <label>Duplex (€/nuit)</label>
-          <div class="input-euro"><input type="number" class="price-duplex" min="0" step="1" value="${duplexPrice}"><span>€</span></div>
+          <label>Le Duplex</label>
+          <div class="input-euro"><input type="number" class="price-duplex" min="0" step="1" value="${duplexPrice}"><span>€/nuit</span></div>
         </div>
         <div class="price-field">
-          <label>RDC (€/nuit)</label>
-          <div class="input-euro"><input type="number" class="price-rdc" min="0" step="1" value="${rdcPrice}"><span>€</span></div>
-        </div>
-        <div class="price-field">
-          <label>Min. nuits</label>
-          <div class="input-euro"><input type="number" class="season-min-nuits" min="1" max="30" step="1" value="${minNuitsVal}"><span>nuit</span></div>
+          <label>Le Rez-de-chaussée</label>
+          <div class="input-euro"><input type="number" class="price-rdc" min="0" step="1" value="${rdcPrice}"><span>€/nuit</span></div>
         </div>
       </div>
-      <label style="font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Périodes de l'année concernées</label>
+      <label style="font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Périodes concernées & durée minimale par période</label>
       <div class="ranges-list"></div>
       <button type="button" class="add-range-btn">+ Ajouter une période</button>
     `;
     const rangesList = card.querySelector('.ranges-list');
-    if(ranges.length === 0) ranges.push({ debut: '', fin: '' });
-    for(const r of ranges) addRangeRow(rangesList, r.debut, r.fin);
-    card.querySelector('.add-range-btn').addEventListener('click', () => addRangeRow(rangesList, '', ''));
+    if(ranges.length === 0) ranges.push({ debut: '', fin: '', minNuits: 1 });
+    for(const r of ranges) addRangeRow(rangesList, r.debut, r.fin, r.minNuits);
+    card.querySelector('.add-range-btn').addEventListener('click', () => addRangeRow(rangesList, '', '', 1));
     container.appendChild(card);
   }
 }
@@ -217,6 +216,7 @@ function renderBlockedSection(){
     card.dataset.property = prop.key;
     card.innerHTML = `
       <h2>Périodes fermées — ${prop.label}</h2>
+      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Travaux, entretien... Ces dates seront indisponibles à la réservation.</p>
       <div class="blocked-list"></div>
       <button type="button" class="add-blocked-btn">+ Fermer une période</button>
     `;
@@ -250,7 +250,9 @@ function addPromoRow(container, p){
   row.innerHTML = `
     <input type="text" class="promo-code" placeholder="CODE" style="text-transform:uppercase; max-width:130px;" value="${p.code || ''}">
     <input type="number" class="promo-pct" min="1" max="100" step="1" placeholder="%" style="width:70px; padding:7px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px;" value="${p.pourcentage || ''}">
+    <span style="font-size:12px; color:var(--ink-soft);">du</span>
     <input type="date" class="promo-debut" value="${p.debut || ''}">
+    <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="promo-fin" value="${p.fin || ''}">
     <label style="font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:4px;"><input type="checkbox" class="promo-actif" ${p.actif !== false ? 'checked' : ''}> actif</label>
     <button type="button" class="remove-btn">×</button>
@@ -264,20 +266,26 @@ function addBlockedRow(container, debut, fin, motif){
   row.className = 'blocked-row';
   row.innerHTML = `
     <input type="date" class="blocked-debut" value="${debut || ''}">
+    <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="blocked-fin" value="${fin || ''}">
-    <input type="text" class="blocked-motif" placeholder="Motif" value="${motif ? motif.replace(/"/g,'&quot;') : ''}">
+    <input type="text" class="blocked-motif" placeholder="Motif (ex. travaux)" value="${motif ? motif.replace(/"/g,'&quot;') : ''}">
     <button type="button" class="remove-btn">×</button>
   `;
   row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
   container.appendChild(row);
 }
 
-function addRangeRow(container, debut, fin){
+function addRangeRow(container, debut, fin, minNuits){
   const row = document.createElement('div');
   row.className = 'range-row';
   row.innerHTML = `
     <input type="date" class="range-debut" value="${debut}">
+    <span style="font-size:12px; color:var(--ink-soft);">au</span>
     <input type="date" class="range-fin" value="${fin}">
+    <div class="range-min-wrap" title="Nombre de nuits minimum pour cette période">
+      <input type="number" class="range-min-nuits" min="1" max="30" step="1" value="${minNuits || 1}">
+      <span>nuit(s)</span>
+    </div>
     <button type="button" class="remove-btn">×</button>
   `;
   row.querySelector('.remove-btn').addEventListener('click', () => row.remove());
@@ -297,12 +305,12 @@ function collectCurrentSeasonsFromForm(propertyKey){
   document.querySelectorAll('#seasons-container .season-card').forEach(card => {
     const seasonName = card.dataset.season;
     const priceVal = card.querySelector('.' + priceField).value;
-    const minNuitsVal = Number(card.querySelector('.season-min-nuits').value) || 1;
     if(priceVal === '') return;
     const nightly = Number(priceVal);
     card.querySelectorAll('.range-row').forEach(row => {
       const debut = row.querySelector('.range-debut').value;
       const fin = row.querySelector('.range-fin').value;
+      const minNuitsVal = Number(row.querySelector('.range-min-nuits').value) || 1;
       if(!debut || !fin) return;
       saisons.push({ nom: seasonName, debut, fin, nightly, minNuits: minNuitsVal });
     });
@@ -310,7 +318,6 @@ function collectCurrentSeasonsFromForm(propertyKey){
   return { nightlyDefault, minNuitsDefault, saisons };
 }
 
-// Logique de priorité : "Pics & Événements" ou période la plus courte en cas de chevauchement
 function getSeasonDataForDate(tarifLive, dateStr){
   const matching = tarifLive.saisons.filter(s => dateStr >= s.debut && dateStr <= s.fin);
   if(matching.length === 0){
@@ -405,11 +412,11 @@ async function save(){
       const seasonName = card.dataset.season;
       const priceDuplex = Number(card.querySelector('.price-duplex').value);
       const priceRdc = Number(card.querySelector('.price-rdc').value);
-      const minNuits = Number(card.querySelector('.season-min-nuits').value) || 1;
       
       card.querySelectorAll('.range-row').forEach(row => {
         const debut = row.querySelector('.range-debut').value;
         const fin = row.querySelector('.range-fin').value;
+        const minNuits = Number(row.querySelector('.range-min-nuits').value) || 1;
         if(!debut || !fin) return;
         if(priceDuplex) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex, minNuits });
         if(priceRdc) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc, minNuits });
@@ -480,163 +487,6 @@ async function save(){
   }
 }
 
-(function init(){
-  const saved = sessionStorage.getItem('admin-password');
-  if(saved){
-    document.getElementById('password-input').value = saved;
-    login();
-  }
-})();
-</script>
-</body>
-</html>
-  document.getElementById('preview-month-label').textContent = FR_MONTHS[previewView.getMonth()] + ' ' + previewView.getFullYear();
-  const grid = document.getElementById('preview-grid');
-  grid.innerHTML = '';
-
-  const year = previewView.getFullYear(), month = previewView.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const offset = (firstDay.getDay()+6)%7;
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-
-  for(let i=0;i<offset;i++){
-    const c = document.createElement('div');
-    grid.appendChild(c);
-  }
-  for(let day=1; day<=daysInMonth; day++){
-    const d = new Date(year, month, day);
-    const dStr = fmtDate(d);
-    const price = getNightlyRateFromForm(tarifLive, dStr);
-    const cell = document.createElement('div');
-    cell.style.cssText = 'aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; border-radius:4px; background:var(--forest-soft); color:var(--forest);';
-    cell.innerHTML = `<span style="font-weight:600;">${day}</span><span>${price}€</span>`;
-    grid.appendChild(cell);
-  }
-}
-
-document.getElementById('preview-prev').addEventListener('click', () => {
-  previewView = new Date(previewView.getFullYear(), previewView.getMonth()-1, 1);
-  renderPreview();
-});
-document.getElementById('preview-next').addEventListener('click', () => {
-  previewView = new Date(previewView.getFullYear(), previewView.getMonth()+1, 1);
-  renderPreview();
-});
-document.querySelectorAll('.preview-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.preview-tab').forEach(t => {
-      t.classList.remove('active');
-      t.style.background = '#fff';
-      t.style.color = 'var(--ink-soft)';
-    });
-    tab.classList.add('active');
-    tab.style.background = 'var(--river)';
-    tab.style.color = '#fff';
-    previewProperty = tab.dataset.property;
-    renderPreview();
-  });
-});
-// Mise à jour automatique dès qu'un prix ou une date de saison change
-document.getElementById('seasons-container').addEventListener('input', renderPreview);
-document.getElementById('default-duplex').addEventListener('input', renderPreview);
-document.getElementById('default-rdc').addEventListener('input', renderPreview);
-// Les boutons +/- période recréent des lignes : on réécoute après chaque ajout/suppression via délégation déjà couverte par 'input' sur le changement de date, mais le retrait d'une ligne n'émet pas d'input : on couvre ça aussi.
-document.getElementById('seasons-container').addEventListener('click', e => {
-  if(e.target.classList.contains('remove-btn') || e.target.classList.contains('add-range-btn')) setTimeout(renderPreview, 0);
-});
-
-document.getElementById('save-btn').addEventListener('click', save);
-
-async function save(){
-  const btn = document.getElementById('save-btn');
-  const statusEl = document.getElementById('status-line');
-  btn.disabled = true;
-  statusEl.textContent = '';
-  statusEl.className = 'status-line';
-
-  try{
-    const defaultDuplex = Number(document.getElementById('default-duplex').value);
-    const defaultRdc = Number(document.getElementById('default-rdc').value);
-
-    const duplexSeasons = [];
-    const rdcSeasons = [];
-
-    document.querySelectorAll('.season-card').forEach(card => {
-      if(!card.dataset.season) return; // carte "périodes fermées", pas une saison
-      const seasonName = card.dataset.season;
-      const priceDuplex = Number(card.querySelector('.price-duplex').value);
-      const priceRdc = Number(card.querySelector('.price-rdc').value);
-      card.querySelectorAll('.range-row').forEach(row => {
-        const debut = row.querySelector('.range-debut').value;
-        const fin = row.querySelector('.range-fin').value;
-        if(!debut || !fin) return; // ligne incomplète, ignorée
-        if(priceDuplex) duplexSeasons.push({ nom: seasonName, debut, fin, nightly: priceDuplex });
-        if(priceRdc) rdcSeasons.push({ nom: seasonName, debut, fin, nightly: priceRdc });
-      });
-    });
-
-    fullTarifs.duplex.nightlyDefault = defaultDuplex;
-    fullTarifs.duplex.saisons = duplexSeasons;
-    fullTarifs.rdc.nightlyDefault = defaultRdc;
-    fullTarifs.rdc.saisons = rdcSeasons;
-
-    const openUntil = document.getElementById('open-until').value;
-    if(openUntil) fullTarifs.reservationsOuvertesJusquau = openUntil;
-
-    const datesBloquees = { duplex: [], rdc: [] };
-    document.querySelectorAll('#blocked-container .season-card').forEach(card => {
-      const prop = card.dataset.property;
-      card.querySelectorAll('.blocked-row').forEach(row => {
-        const debut = row.querySelector('.blocked-debut').value;
-        const fin = row.querySelector('.blocked-fin').value;
-        const motif = row.querySelector('.blocked-motif').value;
-        if(!debut || !fin) return; // ligne incomplète, ignorée
-        datesBloquees[prop].push({ debut, fin, motif: motif || '' });
-      });
-    });
-    fullTarifs.datesBloquees = datesBloquees;
-
-    const codesPromo = [];
-    const seenCodes = new Set();
-    document.querySelectorAll('#promo-card .promo-row').forEach(row => {
-      const code = row.querySelector('.promo-code').value.trim().toUpperCase();
-      const pctRaw = row.querySelector('.promo-pct').value;
-      const debut = row.querySelector('.promo-debut').value;
-      const fin = row.querySelector('.promo-fin').value;
-      const actif = row.querySelector('.promo-actif').checked;
-      if(!code && !pctRaw) return; // ligne vide, ignorée
-      const pct = Number(pctRaw);
-      if(!code) throw new Error('Un code promo n\'a pas de nom : renseignez le code ou supprimez la ligne.');
-      if(!(pct >= 1 && pct <= 100)) throw new Error(`Code ${code} : le pourcentage doit être compris entre 1 et 100.`);
-      if(debut && fin && debut > fin) throw new Error(`Code ${code} : la date de début est postérieure à la date de fin.`);
-      if(seenCodes.has(code)) throw new Error(`Le code ${code} apparaît deux fois.`);
-      seenCodes.add(code);
-      const entry = { code, pourcentage: pct, actif };
-      if(debut) entry.debut = debut;
-      if(fin) entry.fin = fin;
-      codesPromo.push(entry);
-    });
-    fullTarifs.codesPromo = codesPromo;
-
-    const res = await fetch(ADMIN_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-      body: JSON.stringify(fullTarifs)
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Erreur lors de la sauvegarde.');
-
-    statusEl.textContent = 'Tarifs enregistrés — déjà en ligne sur le site.';
-    statusEl.classList.add('ok');
-  }catch(e){
-    statusEl.textContent = e.message;
-    statusEl.classList.add('error');
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-// Reconnexion automatique si un mot de passe est déjà en mémoire pour cette session
 (function init(){
   const saved = sessionStorage.getItem('admin-password');
   if(saved){
